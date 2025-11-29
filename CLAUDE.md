@@ -44,7 +44,8 @@ Then Claude Desktop can read/write files in `~/Documents/Gimbal/` and fetch web 
 
 1. **mcp-filesystem** (`src/filesystem_server.py`)
    - Our own, built with Python MCP SDK
-   - Tools: read_file, write_file, list_directory, create_directory, delete_file, move_file
+   - File tools: read_file, write_file, list_directory, create_directory, delete_file, move_file
+   - Project tools: list_projects, create_project, open_in_finder
    - Restricts access to allowed directories only
 
 2. **mcp-fetch** (official Anthropic `mcp-server-fetch` from PyPI)
@@ -95,6 +96,7 @@ Then Claude Desktop can read/write files in `~/Documents/Gimbal/` and fetch web 
 - Standalone binaries (no runtime deps)
 - Setup app with native macOS dialogs
 - Full install flow tested
+- Project management (list, create, open in Finder)
 
 ### Pending
 - [ ] Test on clean environment (Sara's machine)
