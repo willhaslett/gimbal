@@ -14,9 +14,10 @@ from pathlib import Path
 
 
 # Paths
-GIMBAL_DIR = Path.home() / ".gimbal"
+GIMBAL_DIR = Path.home() / "Documents" / "Gimbal"
 PROJECTS_DIR = GIMBAL_DIR / "projects"
-MCP_BIN_DIR = GIMBAL_DIR / "mcp" / "bin"
+GIMBAL_APP_SUPPORT = Path.home() / "Library" / "Application Support" / "Gimbal"
+MCP_BIN_DIR = GIMBAL_APP_SUPPORT / "bin"
 CLAUDE_CONFIG_DIR = Path.home() / "Library" / "Application Support" / "Claude"
 CLAUDE_CONFIG_FILE = CLAUDE_CONFIG_DIR / "claude_desktop_config.json"
 
@@ -32,7 +33,7 @@ def get_bundle_dir() -> Path:
 
 
 def create_directory_structure():
-    """Create the ~/.gimbal directory structure."""
+    """Create the ~/Documents/Gimbal directory structure and app support directories."""
     GIMBAL_DIR.mkdir(exist_ok=True)
     PROJECTS_DIR.mkdir(exist_ok=True)
     MCP_BIN_DIR.mkdir(parents=True, exist_ok=True)
@@ -42,15 +43,13 @@ def create_directory_structure():
     if not claude_md.exists():
         claude_md.write_text("""# Gimbal Workspace
 
-This directory (`~/.gimbal`) is a managed workspace where Claude (via Claude Desktop + MCP) can read and write files.
+This directory (`~/Documents/Gimbal`) is a managed workspace where Claude (via Claude Desktop + MCP) can read and write files.
 
 ## Structure
 
 ```
-~/.gimbal/
+~/Documents/Gimbal/
 ├── CLAUDE.md           # This file
-├── mcp/
-│   └── bin/            # MCP server binaries
 └── projects/
     └── <project_name>/
         ├── CLAUDE.md   # Project-specific context
@@ -67,18 +66,18 @@ Ask Claude to help you set up a new project!
 ## Capabilities
 
 Claude Desktop can now:
-- **Read and write files** in this ~/.gimbal directory
+- **Read and write files** in this ~/Documents/Gimbal directory
 - **Fetch web content** from URLs (APIs, websites, data sources)
 
 ## Limitations
 
-Claude can only access files within ~/.gimbal. To work with files elsewhere,
-copy them into a project folder first.
+Claude can only access files within ~/Documents/Gimbal. To work with files elsewhere,
+copy them into this folder first.
 """)
 
 
 def install_mcp_binaries():
-    """Copy MCP server binaries to ~/.gimbal/mcp/bin/."""
+    """Copy MCP server binaries to ~/Library/Application Support/Gimbal/bin/."""
     bundle_dir = get_bundle_dir()
 
     binaries = ["mcp-filesystem", "mcp-fetch"]
@@ -179,7 +178,7 @@ def main():
     result = show_dialog(
         "Gimbal Setup",
         "This will set up Gimbal for Claude Desktop:\\n\\n"
-        "• Create ~/.gimbal/ workspace directory\\n"
+        "• Create ~/Documents/Gimbal/ workspace directory\\n"
         "• Install MCP servers for file access and web fetching\\n"
         "• Configure Claude Desktop to use these servers\\n\\n"
         "Continue?",
@@ -197,7 +196,7 @@ def main():
             "Next steps:\\n"
             "1. Quit Claude Desktop (Cmd+Q)\\n"
             "2. Reopen Claude Desktop\\n"
-            "3. Ask Claude to list files in ~/.gimbal\\n\\n"
+            "3. Ask Claude to list files in ~/Documents/Gimbal\\n\\n"
             "Enjoy!"
         )
     except Exception as e:

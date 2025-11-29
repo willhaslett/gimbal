@@ -32,11 +32,11 @@ Output: `dist/Gimbal Setup.app` (~55MB)
 ## What It Does
 
 User double-clicks `Gimbal Setup.app`, which:
-1. Creates `~/.gimbal/` directory structure
-2. Copies bundled MCP server binaries to `~/.gimbal/mcp/bin/`
+1. Creates `~/Documents/Gimbal/` workspace directory
+2. Copies bundled MCP server binaries to `~/Library/Application Support/Gimbal/bin/`
 3. Configures Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json`)
 
-Then Claude Desktop can read/write files in `~/.gimbal/` and fetch web content.
+Then Claude Desktop can read/write files in `~/Documents/Gimbal/` and fetch web content.
 
 ## Architecture
 
@@ -58,6 +58,7 @@ Then Claude Desktop can read/write files in `~/.gimbal/` and fetch web content.
 
 ## File Structure
 
+**Development (this repo):**
 ```
 ~/code/gimbal/
 ├── CLAUDE.md              # This file
@@ -70,6 +71,21 @@ Then Claude Desktop can read/write files in `~/.gimbal/` and fetch web content.
 │   ├── mcp-filesystem
 │   └── mcp-fetch
 └── build/                 # PyInstaller temp files (gitignored)
+```
+
+**Installed (on user's machine):**
+```
+~/Documents/Gimbal/              # User workspace (visible in Finder)
+├── CLAUDE.md
+└── projects/
+
+~/Library/Application Support/
+├── Gimbal/
+│   └── bin/                     # MCP server binaries
+│       ├── mcp-filesystem
+│       └── mcp-fetch
+└── Claude/
+    └── claude_desktop_config.json   # Updated with MCP config
 ```
 
 ## Current Status
