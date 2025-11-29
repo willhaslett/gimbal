@@ -1,106 +1,100 @@
-# Project: claude-workspace-app (Gimbal)
-
-## Overview
+# Gimbal
 
 A macOS app that configures Claude Desktop with MCP servers for filesystem access and web fetching, requiring zero dependencies from the end user.
 
-**Goal:** Enable non-technical users (like Sara, a community planner) to use Claude Desktop with file management and web fetch capabilities without needing to install Python, Node.js, or use the command line.
+## Quick Start (Development)
 
-**Business potential:** Could be a paid app - wrapper around Claude Desktop that adds MCP capabilities. Legal considerations reviewed (MCP is MIT licensed, we don't redistribute Claude Desktop).
+```bash
+cd ~/code/gimbal
+uv sync                              # Install dependencies
+uv run python src/gimbal_setup.py    # Test setup script locally
+```
+
+## Build Commands
+
+```bash
+# Build MCP server binaries
+uv run pyinstaller --onefile --name mcp-filesystem src/filesystem_server.py
+uv run pyinstaller --onefile --name mcp-fetch $(uv run python -c "import mcp_server_fetch; print(mcp_server_fetch.__file__.replace('__init__.py', '__main__.py'))")
+
+# Build the .app bundle (after building binaries above)
+uv run pyinstaller \
+  --name "Gimbal Setup" \
+  --onedir \
+  --windowed \
+  --add-data "dist/mcp-filesystem:." \
+  --add-data "dist/mcp-fetch:." \
+  src/gimbal_setup.py
+```
+
+Output: `dist/Gimbal Setup.app` (~55MB)
+
+## What It Does
+
+User double-clicks `Gimbal Setup.app`, which:
+1. Creates `~/.gimbal/` directory structure
+2. Copies bundled MCP server binaries to `~/.gimbal/mcp/bin/`
+3. Configures Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json`)
+
+Then Claude Desktop can read/write files in `~/.gimbal/` and fetch web content.
 
 ## Architecture
 
-```
-Gimbal Setup.app
-├── Bundles standalone MCP server binaries (no Python/Node required)
-├── Creates ~/.gimbal/ directory structure
-├── Writes Claude Desktop MCP config
-└── User double-clicks, everything just works
-```
-
 ### MCP Servers
 
-1. **mcp-filesystem** (our own, `src/filesystem_server.py`)
-   - Built with Python MCP SDK
+1. **mcp-filesystem** (`src/filesystem_server.py`)
+   - Our own, built with Python MCP SDK
    - Tools: read_file, write_file, list_directory, create_directory, delete_file, move_file
    - Restricts access to allowed directories only
 
-2. **mcp-fetch** (official Anthropic `mcp-server-fetch`)
+2. **mcp-fetch** (official Anthropic `mcp-server-fetch` from PyPI)
    - Fetches web content and converts to markdown
-   - Enables Claude to download data from APIs, websites
 
 ### Build Process
 
-- Use PyInstaller to create standalone binaries
-- Binaries bundle Python runtime (~20-25MB each)
-- No external dependencies at runtime
-
-## Current Status
-
-### Completed
-- [x] Verified mcp-server-fetch works
-- [x] Wrote custom Python filesystem MCP server
-- [x] Tested both servers with Claude Desktop (via venv)
-- [x] Built standalone binaries with PyInstaller
-- [x] Tested standalone binaries with Claude Desktop - **working**
-- [x] Created Gimbal Setup.app (~55MB total)
-- [x] Tested full install flow - **working**
-
-### Pending
-- [ ] Test on clean environment (Sara's machine or fresh user)
-- [ ] Address startup timing issue (servers take a moment to initialize on first launch)
-- [ ] Consider code signing / notarization for distribution
+- PyInstaller bundles Python runtime into standalone binaries
+- No Python/Node.js required on end user's machine
+- `dist/` is gitignored - must rebuild after cloning
 
 ## File Structure
 
 ```
-~/.claude_workspace/projects/claude-workspace-app/
+~/code/gimbal/
 ├── CLAUDE.md              # This file
 ├── pyproject.toml         # uv project config
 ├── src/
-│   ├── filesystem_server.py   # Our MCP filesystem server
+│   ├── filesystem_server.py   # MCP filesystem server
 │   └── gimbal_setup.py        # Setup app source
-├── dist/
-│   ├── Gimbal Setup.app   # THE APP - ready to distribute
-│   ├── mcp-filesystem     # Standalone binary (19MB)
-│   └── mcp-fetch          # Standalone binary (24MB)
-└── build/                 # PyInstaller build artifacts
+├── dist/                  # Built artifacts (gitignored)
+│   ├── Gimbal Setup.app
+│   ├── mcp-filesystem
+│   └── mcp-fetch
+└── build/                 # PyInstaller temp files (gitignored)
 ```
 
-## Usage
+## Current Status
 
-### For end users
-1. Double-click `Gimbal Setup.app`
-2. Click "Continue"
-3. Quit and reopen Claude Desktop
-4. Ask Claude to "list files in ~/.gimbal"
+### Working
+- Both MCP servers functional with Claude Desktop
+- Standalone binaries (no runtime deps)
+- Setup app with native macOS dialogs
+- Full install flow tested
 
-### For development
-```bash
-cd ~/.claude_workspace/projects/claude-workspace-app
-uv run python src/gimbal_setup.py  # Test setup script
-uv run pyinstaller ...             # Rebuild binaries
-```
+### Pending
+- [ ] Test on clean environment (Sara's machine)
+- [ ] Address startup timing (servers take 1-2s to initialize on first launch)
+- [ ] Code signing / notarization for distribution
 
 ## Key Decisions
 
-1. **App name: Gimbal** - Neutral, brandable name that avoids trademark issues with "Claude"
+1. **App name: Gimbal** - Neutral name avoiding "Claude" trademark issues
 
-2. **Rolled our own filesystem server** - The PyPI `mcp-server-filesystem` package was malicious (launched Calculator on import). We wrote a minimal one using the MCP Python SDK.
+2. **Rolled our own filesystem server** - PyPI `mcp-server-filesystem` was malicious (launched Calculator on import). Reported to security@pypi.org.
 
-3. **Using uv for development** - Cleaner than venv, all dev work in project directory.
+3. **Python-only stack** - Eliminated Node.js dependency entirely
 
-4. **Python-only stack** - Eliminated Node.js dependency by using Python MCP servers for everything.
+4. **Native macOS dialogs** - osascript instead of tkinter (unavailable in Homebrew Python)
 
-5. **Standalone binaries** - PyInstaller bundles Python runtime so users need nothing installed.
+## Target User
 
-6. **Native macOS dialogs** - Used osascript instead of tkinter (which isn't available in Homebrew Python).
-
-## Notes
-
-- Malicious package `mcp-server-filesystem` on PyPI should be reported to security@pypi.org
-- The legitimate GitHub repo (MarcusJellinghaus/mcp_server_filesystem) has different code - PyPI package is an imposter
-- Startup timing: binaries take ~1-2 seconds to initialize on first run (unpacking bundled Python)
-
-## Last Updated
-2025-11-28
+Sara (community planner) - needs Claude Desktop to download Census data and save files, but isn't a command-line user. This app makes MCP "just work" for non-technical users.
