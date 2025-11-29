@@ -4,10 +4,9 @@ Minimal MCP Filesystem Server
 Provides read, write, and list operations within allowed directories.
 """
 
-import os
+import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -16,6 +15,9 @@ mcp = FastMCP(name="filesystem")
 
 # Allowed directories - set via command line or defaults to home
 ALLOWED_DIRECTORIES: list[Path] = []
+
+# Projects directory (first allowed directory + /projects)
+PROJECTS_DIR: Path | None = None
 
 
 def is_path_allowed(path: Path) -> bool:
@@ -156,14 +158,122 @@ def move_file(source: str, destination: str) -> str:
     return f"Successfully moved {source} to {destination}"
 
 
+@mcp.tool()
+def list_projects() -> str:
+    """List all projects in the Gimbal workspace.
+
+    Returns:
+        Formatted listing of projects with their descriptions
+    """
+    if PROJECTS_DIR is None or not PROJECTS_DIR.exists():
+        return "No projects directory found."
+
+    projects = []
+    for entry in sorted(PROJECTS_DIR.iterdir()):
+        if entry.is_dir() and not entry.name.startswith('.'):
+            # Try to read project description from CLAUDE.md
+            claude_md = entry / "CLAUDE.md"
+            description = ""
+            if claude_md.exists():
+                content = claude_md.read_text()
+                # Get first non-empty, non-heading line as description
+                for line in content.split('\n'):
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        description = line[:100]  # Truncate long descriptions
+                        break
+            projects.append(f"• {entry.name}" + (f" - {description}" if description else ""))
+
+    if not projects:
+        return "No projects yet. Use create_project to create one!"
+
+    return "Projects:\n" + "\n".join(projects)
+
+
+@mcp.tool()
+def create_project(name: str, description: str = "") -> str:
+    """Create a new project with standard directory structure.
+
+    Args:
+        name: Project name (will be used as folder name)
+        description: Brief description of the project
+
+    Returns:
+        Confirmation message with project path
+    """
+    if PROJECTS_DIR is None:
+        raise ValueError("Projects directory not configured")
+
+    # Sanitize project name
+    safe_name = "".join(c for c in name if c.isalnum() or c in "-_ ").strip()
+    safe_name = safe_name.replace(" ", "-").lower()
+
+    if not safe_name:
+        raise ValueError("Invalid project name")
+
+    project_path = PROJECTS_DIR / safe_name
+
+    if project_path.exists():
+        raise ValueError(f"Project already exists: {safe_name}")
+
+    # Create project structure
+    project_path.mkdir(parents=True)
+    (project_path / "downloads").mkdir()
+    (project_path / "scripts").mkdir()
+    (project_path / "data").mkdir()
+
+    # Create project CLAUDE.md
+    claude_md_content = f"""# {name}
+
+{description}
+
+## Structure
+
+- `downloads/` - Raw files fetched from the web
+- `scripts/` - Processing scripts
+- `data/` - Processed/final data
+
+## Notes
+
+Add project-specific notes and context here.
+"""
+    (project_path / "CLAUDE.md").write_text(claude_md_content)
+
+    return f"Created project '{safe_name}' at {project_path}"
+
+
+@mcp.tool()
+def open_in_finder(path: str = "") -> str:
+    """Open a path in Finder.
+
+    Args:
+        path: Path to open (defaults to Gimbal workspace root)
+
+    Returns:
+        Confirmation message
+    """
+    if path:
+        target_path = validate_path(path)
+    elif ALLOWED_DIRECTORIES:
+        target_path = ALLOWED_DIRECTORIES[0]
+    else:
+        raise ValueError("No path specified and no default directory available")
+
+    if not target_path.exists():
+        raise FileNotFoundError(f"Path not found: {path}")
+
+    subprocess.run(["open", str(target_path)], check=True)
+    return f"Opened {target_path} in Finder"
+
+
 def main():
     """Main entry point."""
-    global ALLOWED_DIRECTORIES
+    global ALLOWED_DIRECTORIES, PROJECTS_DIR
 
     # Parse allowed directories from command line
     if len(sys.argv) < 2:
         print("Usage: filesystem_server.py <allowed_directory> [additional_directories...]", file=sys.stderr)
-        print("Example: filesystem_server.py ~/.claude_workspace", file=sys.stderr)
+        print("Example: filesystem_server.py ~/Documents/Gimbal", file=sys.stderr)
         sys.exit(1)
 
     for dir_arg in sys.argv[1:]:
@@ -176,6 +286,9 @@ def main():
     if not ALLOWED_DIRECTORIES:
         print("Error: No valid directories provided", file=sys.stderr)
         sys.exit(1)
+
+    # Set projects directory (assumes first allowed dir is Gimbal workspace)
+    PROJECTS_DIR = ALLOWED_DIRECTORIES[0] / "projects"
 
     print(f"Starting filesystem server with allowed directories: {ALLOWED_DIRECTORIES}", file=sys.stderr)
     mcp.run()
