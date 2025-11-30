@@ -33,6 +33,10 @@ export async function createProject(name: string, basePath: string): Promise<Pro
   return data.project
 }
 
+export async function deleteProject(id: string): Promise<void> {
+  await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' })
+}
+
 // Files
 export async function listFiles(projectId: string, path = ''): Promise<FileEntry[]> {
   const url = path
