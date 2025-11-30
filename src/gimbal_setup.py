@@ -43,36 +43,59 @@ def create_directory_structure():
     if not claude_md.exists():
         claude_md.write_text("""# Gimbal Workspace
 
-This directory (`~/Documents/Gimbal`) is a managed workspace where Claude (via Claude Desktop + MCP) can read and write files.
+You have access to a local workspace at ~/Documents/Gimbal where you can help the user with data projects. This is powered by Gimbal, which gives you filesystem and web access through MCP servers.
 
-## Structure
+## What You Can Do
+
+**Fetch data from the web** - Download files, call APIs, scrape websites
+**Save and organize files** - Store downloads, scripts, and processed data locally
+**Create and run scripts** - Write Python or shell scripts for data processing
+**Generate reports** - Create markdown, CSV, or other output files
+
+## Available MCP Tools
+
+### Project Management
+- `list_projects` - Show all projects in the workspace
+- `create_project` - Create a new project with standard folder structure
+- `open_in_finder` - Open a folder in Finder for the user to browse
+
+### File Operations
+- `read_file` / `write_file` - Read and write file contents
+- `list_directory` - List contents of a directory
+- `create_directory` - Create a new directory
+- `move_file` / `delete_file` - Move or delete files
+
+### Web Access
+- `fetch` - Fetch content from any URL (via mcp-fetch server)
+
+## Project Structure
+
+Each project in `~/Documents/Gimbal/projects/` follows this layout:
 
 ```
-~/Documents/Gimbal/
-├── CLAUDE.md           # This file
-└── projects/
-    └── <project_name>/
-        ├── CLAUDE.md   # Project-specific context
-        ├── downloads/  # Raw files fetched from the web
-        ├── scripts/    # Processing scripts
-        └── data/       # Processed/final data
+project-name/
+├── CLAUDE.md   # Project context and notes
+├── downloads/  # Raw files from the web
+├── scripts/    # Processing scripts
+└── data/       # Processed/final outputs
 ```
 
-## Creating Projects
+## Getting Started
 
-Create a new project folder under `projects/` with the structure above.
-Ask Claude to help you set up a new project!
+When the user wants to start a new data project, use `create_project` to set up the folder structure, then help them fetch data, write processing scripts, and generate outputs.
 
-## Capabilities
-
-Claude Desktop can now:
-- **Read and write files** in this ~/Documents/Gimbal directory
-- **Fetch web content** from URLs (APIs, websites, data sources)
+Example workflow:
+1. User: "I want to analyze Census data for my county"
+2. Create a project: `create_project("census-analysis", "Demographic analysis for County X")`
+3. Fetch data from Census API or data.census.gov
+4. Save raw data to downloads/
+5. Write a Python script in scripts/ to process it
+6. Output results to data/
 
 ## Limitations
 
-Claude can only access files within ~/Documents/Gimbal. To work with files elsewhere,
-copy them into this folder first.
+- You can only access files within ~/Documents/Gimbal
+- To work with files from elsewhere, ask the user to copy them into a project folder
 """)
 
 
