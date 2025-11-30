@@ -1,5 +1,6 @@
 import express from 'express'
 import { query } from '@anthropic-ai/claude-agent-sdk'
+import { SYSTEM_PROMPT } from './schema.js'
 
 const app = express()
 const port = 3001
@@ -23,6 +24,7 @@ app.post('/api/query', async (req, res) => {
   for await (const message of query({
     prompt,
     options: {
+      systemPrompt: SYSTEM_PROMPT,
       mcpServers: {
         filesystem: {
           command: 'npx',
