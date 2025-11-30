@@ -66,3 +66,24 @@ POST /api/projects/:id/query  { prompt }
 ## Open Questions
 
 - Conversation history management within projects
+
+## Cloud Architecture (2024-11-30)
+
+Target deployment stack (AWS):
+
+```
+CloudFront → S3 (React app)
+     ↓
+API Gateway → Fargate (Node server)
+     ↓
+S3 (projects) + DynamoDB (metadata)
+```
+
+**Components:**
+- **Fargate**: Node server container, handles Claude SDK calls and script execution
+- **S3**: Project file storage (replaces local filesystem)
+- **DynamoDB**: Project/user metadata
+- **CloudFront + S3**: Static React frontend
+- **Cognito**: User auth (links users to projects)
+
+**Script execution isolation** (future): Currently same-container with sandboxing; may move to per-execution Fargate tasks or Lambda for stronger isolation when needed.
