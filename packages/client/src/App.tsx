@@ -60,6 +60,7 @@ function App() {
           {/* Main - Chat Panel */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <ChatPanel
+              key={selectedProject.id}
               projectId={selectedProject.id}
               onFilesChanged={refreshFileTree}
             />

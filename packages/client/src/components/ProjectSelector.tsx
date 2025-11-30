@@ -10,7 +10,7 @@ export function ProjectSelector({ selectedProject, onSelectProject }: Props) {
   const [projects, setProjects] = useState<Project[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
-  const [newPath, setNewPath] = useState('/tmp')
+  const [newPath, setNewPath] = useState('~/Documents/Gimbal')
 
   useEffect(() => {
     listProjects().then(setProjects)
@@ -42,7 +42,7 @@ export function ProjectSelector({ selectedProject, onSelectProject }: Props) {
           <option value="">Select a project...</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name}
+              {p.name} — {p.path}
             </option>
           ))}
         </select>

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile, access } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
 import type { Project, ProjectsConfig } from './types.js'
@@ -30,15 +30,57 @@ async function saveConfig(config: ProjectsConfig): Promise<void> {
   await writeFile(PROJECTS_FILE, JSON.stringify(config, null, 2))
 }
 
+// Check if a path exists on disk
+async function pathExists(p: string): Promise<boolean> {
+  try {
+    await access(p)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function listProjects(): Promise<Project[]> {
   const config = await loadConfig()
-  return config.projects
+
+  // Validate each project path still exists
+  const validProjects: Project[] = []
+  const staleIds: string[] = []
+
+  for (const project of config.projects) {
+    if (await pathExists(project.path)) {
+      validProjects.push(project)
+    } else {
+      console.log(`[Projects] Removing stale project "${project.name}" - path no longer exists: ${project.path}`)
+      staleIds.push(project.id)
+    }
+  }
+
+  // Auto-cleanup stale entries
+  if (staleIds.length > 0) {
+    config.projects = validProjects
+    await saveConfig(config)
+  }
+
+  return validProjects
+}
+
+// Expand ~ to home directory
+function expandHome(p: string): string {
+  if (p.startsWith('~/')) {
+    return join(homedir(), p.slice(2))
+  }
+  if (p === '~') {
+    return homedir()
+  }
+  return p
 }
 
 export async function createProject(name: string, basePath: string): Promise<Project> {
   const config = await loadConfig()
 
-  const projectPath = join(basePath, name)
+  const expandedBase = expandHome(basePath)
+  const projectPath = join(expandedBase, name)
   const project: Project = {
     id: randomUUID(),
     name,
