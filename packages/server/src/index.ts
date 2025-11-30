@@ -1,6 +1,9 @@
 import express from 'express'
 import { readFile } from 'fs/promises'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { buildSystemPrompt } from './schema.js'
 import { listProjects, createProject, getProject, deleteProject } from './projects.js'
@@ -92,8 +95,18 @@ app.post(ROUTES.QUERY, async (req, res) => {
           command: 'npx',
           args: ['-y', '@modelcontextprotocol/server-filesystem', project.path],
         },
+        fetch: {
+          command: 'node',
+          args: [join(__dirname, '../../mcp-fetch/dist/index.js')],
+        },
       },
-      allowedTools: ['mcp__filesystem__read_file', 'mcp__filesystem__list_directory'],
+      allowedTools: [
+        'mcp__filesystem__read_file',
+        'mcp__filesystem__write_file',
+        'mcp__filesystem__create_directory',
+        'mcp__filesystem__list_directory',
+        'mcp__fetch__fetch',
+      ],
     },
   })) {
     messages.push(message)

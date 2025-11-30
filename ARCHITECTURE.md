@@ -47,7 +47,8 @@ flowchart TB
     end
 
     subgraph MCP["MCP Servers"]
-        Tools[Custom Tools]
+        Filesystem[Filesystem Server]
+        Fetch[Fetch Server]
     end
 
     subgraph Storage["Storage"]
@@ -83,10 +84,24 @@ flowchart TB
 - **Backend**: Node.js, Express, Claude Agent SDK
 - **Tools**: MCP servers (stdio transport)
 
+## MCP Servers
+
+Two MCP servers provide Claude's capabilities:
+
+1. **Filesystem** (`@modelcontextprotocol/server-filesystem`)
+   - Scoped to project directory
+   - Tools: read_file, write_file, create_directory, list_directory
+
+2. **Fetch** (`@gimbal/mcp-fetch` - custom)
+   - Simple HTTP GET via Node fetch
+   - Returns response body as text
+
 ## Validated
 
 - Client → Server → Claude Agent SDK → MCP tool calls → structured response → client
 - Filesystem MCP server scoped to project directory
+- Custom fetch MCP server for web requests
+- End-to-end: fetch Census API → save CSV to project (tested with WV county data)
 - Structured response schema (Claude returns JSON, wrapped in markdown fences)
 - Project isolation: each query starts fresh session, no context bleed between projects
 - Sessions are stateless by default (SDK `query()` creates new session each call)
