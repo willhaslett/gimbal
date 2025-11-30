@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { listProjects, createProject, deleteProject, Project, FileEntry, listFiles } from '../api'
+import { listProjects, createProject, deleteProject, Project, FileEntry, listFiles, readFile } from '../api'
 
 // Format date as relative (today, yesterday, or date)
 function formatDate(dateStr: string): string {
@@ -57,11 +57,15 @@ function FileTreeInline({ projectId, onFileSelect }: FileTreeInlineProps) {
       .map((file) => (
         <div key={file.path}>
           <div
-            onClick={() => {
+            onClick={async () => {
+              console.log('[FileTreeInline] clicked:', file.path, file.type)
               if (file.type === 'directory') {
                 toggleDir(file.path)
               } else {
-                onFileSelect(file)
+                console.log('[FileTreeInline] fetching content for:', file.path)
+                const fileWithContent = await readFile(projectId, file.path)
+                console.log('[FileTreeInline] got file:', fileWithContent?.path, 'content length:', fileWithContent?.content?.length)
+                onFileSelect(fileWithContent)
               }
             }}
             style={{

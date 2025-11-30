@@ -7,6 +7,7 @@ interface Props {
 }
 
 export function FileViewer({ file, onClose }: Props) {
+  console.log('[FileViewer] render, file:', file?.path, 'content length:', file?.content?.length)
   if (!file) return null
 
   const isMarkdown = file.path.endsWith('.md')

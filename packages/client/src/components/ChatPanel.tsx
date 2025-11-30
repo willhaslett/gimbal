@@ -226,9 +226,8 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
               ...prev,
               { role: 'assistant', content: '', items },
             ])
-            if (items.some((item) => item.type === 'file_created')) {
-              onFilesChanged()
-            }
+            // Always refresh - Claude may have modified files
+            onFilesChanged()
           } else {
             // Fallback: show raw result
             const fallback = typeof rawResult === 'string'
@@ -239,6 +238,8 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
               ...prev,
               { role: 'assistant', content: fallback },
             ])
+            // Still refresh - Claude may have modified files
+            onFilesChanged()
           }
         } else if (event.type === 'error') {
           const errorData = event.data as { message: string }
