@@ -1,10 +1,23 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+# Dependencies
+node_modules/
 
-# Virtual environments
-.venv
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Archive (keep but don't track changes)
+archive/
