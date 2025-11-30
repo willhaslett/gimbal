@@ -1,0 +1,35 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+button {
+  cursor: pointer;
+}
+
+input, select, button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Markdown content styling */
+.markdown-content h1 { font-size: 1.5rem; margin: 1rem 0 0.5rem; }
+.markdown-content h2 { font-size: 1.25rem; margin: 1rem 0 0.5rem; }
+.markdown-content h3 { font-size: 1.1rem; margin: 0.75rem 0 0.5rem; }
+.markdown-content p { margin: 0.5rem 0; }
+.markdown-content ul, .markdown-content ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+.markdown-content code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
+.markdown-content pre { background: #f5f5f5; padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
+.markdown-content pre code { background: none; padding: 0; }
+.markdown-content blockquote { border-left: 3px solid #ddd; margin: 0.5rem 0; padding-left: 1rem; color: #666; }
+
+/* Status indicator animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}

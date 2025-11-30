@@ -1,64 +1,85 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { Project, FileEntry } from './api'
+import { ProjectSelector } from './components/ProjectSelector'
+import { FileTree } from './components/FileTree'
+import { ChatPanel } from './components/ChatPanel'
+import { FileViewer } from './components/FileViewer'
 
 function App() {
-  const [prompt, setPrompt] = useState('')
-  const [response, setResponse] = useState<unknown>(null)
-  const [loading, setLoading] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null)
+  const [fileTreeKey, setFileTreeKey] = useState(0)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!prompt.trim()) return
-
-    setLoading(true)
-    setResponse(null)
-
-    try {
-      const res = await fetch('/api/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      })
-      const data = await res.json()
-      setResponse(data)
-    } catch (err) {
-      setResponse({ error: String(err) })
-    } finally {
-      setLoading(false)
-    }
-  }
+  const refreshFileTree = useCallback(() => {
+    setFileTreeKey((k) => k + 1)
+  }, [])
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-      <h1>Gimbal</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter a prompt..."
-          style={{ width: '400px', padding: '0.5rem', fontSize: '1rem' }}
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ marginLeft: '0.5rem', padding: '0.5rem 1rem' }}
-        >
-          {loading ? 'Loading...' : 'Send'}
-        </button>
-      </form>
+    <div
+      style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      <ProjectSelector
+        selectedProject={selectedProject}
+        onSelectProject={setSelectedProject}
+      />
 
-      {response && (
-        <pre style={{
-          marginTop: '2rem',
-          padding: '1rem',
-          background: '#f5f5f5',
-          overflow: 'auto',
-          maxHeight: '70vh',
-          fontSize: '0.875rem',
-        }}>
-          {JSON.stringify(response, null, 2)}
-        </pre>
+      {selectedProject ? (
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          {/* Sidebar - File Tree */}
+          <div
+            style={{
+              width: '250px',
+              borderRight: '1px solid #ddd',
+              overflow: 'auto',
+              background: '#fafafa',
+            }}
+          >
+            <div
+              style={{
+                padding: '0.5rem 1rem',
+                fontWeight: 500,
+                borderBottom: '1px solid #eee',
+                fontSize: '0.875rem',
+                color: '#666',
+              }}
+            >
+              Files
+            </div>
+            <FileTree
+              key={fileTreeKey}
+              projectId={selectedProject.id}
+              onFileSelect={setSelectedFile}
+            />
+          </div>
+
+          {/* Main - Chat Panel */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <ChatPanel
+              projectId={selectedProject.id}
+              onFilesChanged={refreshFileTree}
+            />
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#666',
+          }}
+        >
+          Select or create a project to get started
+        </div>
       )}
+
+      <FileViewer file={selectedFile} onClose={() => setSelectedFile(null)} />
     </div>
   )
 }

@@ -10,9 +10,11 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.55",
+    "cors": "^2.8.5",
     "express": "^4.21.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.1",
     "tsx": "^4.19.2",

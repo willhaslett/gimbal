@@ -24,10 +24,20 @@ pnpm --filter @gimbal/client dev   # Client on port 5173
 gimbal/
 ├── packages/
 │   ├── client/          # React frontend (Vite)
+│   │   └── src/
+│   │       ├── api.ts           # API client (REST + SSE streaming)
+│   │       ├── App.tsx          # Main layout (sidebar + chat)
+│   │       ├── index.css        # Global styles + markdown
+│   │       └── components/
+│   │           ├── ProjectSelector.tsx  # Project dropdown + create
+│   │           ├── FileTree.tsx         # Expandable file browser
+│   │           ├── FileViewer.tsx       # Modal with markdown preview
+│   │           └── ChatPanel.tsx        # Chat UI + response rendering
 │   ├── server/          # Node backend (Express)
 │   │   └── src/
-│   │       ├── index.ts      # Express routes
+│   │       ├── index.ts      # Express routes (REST + SSE)
 │   │       ├── projects.ts   # Project CRUD, stored in ~/.gimbal/
+│   │       ├── files.ts      # File operations with path security
 │   │       ├── schema.ts     # Response types, system prompt builder
 │   │       └── types.ts      # Project interface
 │   └── mcp-fetch/       # Custom MCP server for web fetching
@@ -39,33 +49,90 @@ gimbal/
 
 ## API
 
+**Projects:**
 ```
-GET  /api/health
-GET  /api/projects
-POST /api/projects          { name, basePath }
-GET  /api/projects/:id
+GET    /api/health
+GET    /api/projects
+POST   /api/projects              { name, basePath }
+GET    /api/projects/:id
 DELETE /api/projects/:id
-POST /api/projects/:id/query  { prompt }
 ```
+
+**Files (direct, no Claude):**
+```
+GET    /api/projects/:id/files         # List root directory
+GET    /api/projects/:id/files/*       # Read file or list directory
+POST   /api/projects/:id/files/*       # Write file { content }
+PUT    /api/projects/:id/files/*       # Create directory
+DELETE /api/projects/:id/files/*       # Delete file/empty directory
+```
+
+**Query (Claude-powered):**
+```
+POST   /api/projects/:id/query         # Batch response { prompt }
+POST   /api/projects/:id/query/stream  # SSE streaming { prompt }
+```
+
+## Response Schema
+
+Claude returns `GimbalResponse` JSON:
+```typescript
+interface GimbalResponse {
+  items: GimbalResponseItem[]
+}
+
+type GimbalResponseItem =
+  | { type: 'text'; content: string }                    // Markdown text
+  | { type: 'file_created'; path: string; description?: string }
+  | { type: 'file_read'; path: string; content: string }
+  | { type: 'file_list'; path: string; entries: Array<{ name: string; isDirectory: boolean }> }
+  | { type: 'error'; message: string }
+```
+
+## Milestones
+
+### M1: Backend Foundation (Done)
+- Project CRUD with persistent storage (`~/.gimbal/projects.json`)
+- Claude Agent SDK integration with `permissionMode: 'bypassPermissions'`
+- MCP servers: filesystem (scoped to project) + fetch (HTTP GET)
+- Dynamic system prompt with project context
+
+### M2: React UI (Done)
+- Project selector with create form
+- Expandable file tree with click-to-view
+- File viewer modal with markdown preview (react-markdown)
+- Chat panel with message history
+
+### M3: File API (Done)
+- Direct file operations (read/write/list/create/delete)
+- Path traversal protection (`securePath()`)
+- Decoupled from Claude (fast, no AI latency)
+
+### M4: Streaming & Instrumentation (Done)
+- SSE streaming endpoint for real-time status
+- Dynamic status messages ("Searching the web...", "Writing file...")
+- Response schema validation with console instrumentation
+- Graceful fallback when parsing fails
 
 ## Current Status
 
 **Working:**
-- Project CRUD (stored in `~/.gimbal/projects.json`)
-- Project directory template: CLAUDE.md, data/, scripts/, output/
-- Query endpoint calls Claude Agent SDK with project-scoped MCP servers
-- MCP tools: filesystem (read/write/list/create) + fetch (HTTP GET)
-- Dynamic system prompt with project context and path
-- Sessions are stateless (each query is independent, no conversation memory)
-- Validated: fetch Census API data and save as CSV in project
+- Full project lifecycle (create, select, delete)
+- File browsing and viewing with markdown preview
+- Claude chat with streaming status updates
+- Web search and file downloads (Census data validated)
+- Schema validation with detailed error logging
 
-**Known issues:**
-- Claude returns JSON wrapped in markdown fences (needs parsing)
+**Known Issues:**
+- Response rendering sometimes shows raw JSON (instrumentation added to diagnose)
 - macOS `/tmp` vs `/private/tmp` causes extra MCP round-trip
 
-## Open Questions
+## Next Steps
 
-- Conversation history management within projects
+- [ ] Debug response extraction path using console logs
+- [ ] User testing with Sara (target user)
+- [ ] Conversation history within projects
+- [ ] Error recovery UX (retry, clear)
 
 ## Cloud Architecture (2024-11-30)
 
