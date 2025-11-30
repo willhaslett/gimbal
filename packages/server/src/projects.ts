@@ -7,6 +7,17 @@ import type { Project, ProjectsConfig } from './types.js'
 const GIMBAL_DIR = join(homedir(), '.gimbal')
 const PROJECTS_FILE = join(GIMBAL_DIR, 'projects.json')
 
+// Expand ~ to home directory
+function expandHome(p: string): string {
+  if (p.startsWith('~/')) {
+    return join(homedir(), p.slice(2))
+  }
+  if (p === '~') {
+    return homedir()
+  }
+  return p
+}
+
 const DEFAULT_CLAUDE_MD = `# Project
 
 Add project context and instructions for Claude here.
@@ -63,17 +74,6 @@ export async function listProjects(): Promise<Project[]> {
   }
 
   return validProjects
-}
-
-// Expand ~ to home directory
-function expandHome(p: string): string {
-  if (p.startsWith('~/')) {
-    return join(homedir(), p.slice(2))
-  }
-  if (p === '~') {
-    return homedir()
-  }
-  return p
 }
 
 export async function createProject(name: string, basePath: string): Promise<Project> {

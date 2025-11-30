@@ -96,6 +96,8 @@ interface Props {
   fileTreeKey: number
 }
 
+const DEFAULT_PROJECTS_PATH = '~/Documents/Gimbal'
+
 export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fileTreeKey }: Props) {
   const [projects, setProjects] = useState<Project[]>([])
   const [showCreate, setShowCreate] = useState(false)
@@ -114,7 +116,7 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
     e.preventDefault()
     if (!newName.trim()) return
 
-    const project = await createProject(newName.trim(), '~/Documents/Gimbal')
+    const project = await createProject(newName.trim(), DEFAULT_PROJECTS_PATH)
     setProjects([...projects, project])
     onSelectProject(project)
     setShowCreate(false)

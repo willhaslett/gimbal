@@ -18,6 +18,27 @@ pnpm --filter @gimbal/server dev   # Server on port 3001
 pnpm --filter @gimbal/client dev   # Client on port 5173
 ```
 
+## Setup for New Machine
+
+Prerequisites: Node.js 18+, pnpm
+
+```bash
+# 1. Clone and install
+git clone <repo-url> ~/code/gimbal
+cd ~/code/gimbal
+pnpm install
+
+# 2. Set API key (add to ~/.zshrc or equivalent)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# 3. Run
+pnpm --filter @gimbal/server dev   # Terminal 1
+pnpm --filter @gimbal/client dev   # Terminal 2
+# Open http://localhost:5173
+```
+
+Projects are created in `~/Documents/Gimbal/` by default.
+
 ## Project Structure
 
 ```
