@@ -20,7 +20,18 @@ app.post('/api/query', async (req, res) => {
 
   const messages: unknown[] = []
 
-  for await (const message of query({ prompt })) {
+  for await (const message of query({
+    prompt,
+    options: {
+      mcpServers: {
+        filesystem: {
+          command: 'npx',
+          args: ['-y', '@modelcontextprotocol/server-filesystem', '/Users/will/code/gimbal'],
+        },
+      },
+      allowedTools: ['mcp__filesystem__read_file', 'mcp__filesystem__list_directory'],
+    },
+  })) {
     messages.push(message)
   }
 
