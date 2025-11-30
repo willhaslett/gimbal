@@ -31,7 +31,7 @@ pnpm --filter @gimbal/client dev   # Run client (port 5173)
 gimbal/
 ├── packages/
 │   ├── client/       # React frontend (Vite)
-│   └── server/       # Node backend (Express)
+│   └── server/       # Node backend (Express, Claude Agent SDK)
 ├── archive/          # Legacy Python code (not tracked)
 ├── ARCHITECTURE.md
 └── CLAUDE.md
@@ -39,4 +39,10 @@ gimbal/
 
 ## Current Status
 
-Stack set up. Next: POC to validate core loop (send prompt → SDK → MCP tool call → structured response).
+Core loop validated:
+- Client sends prompt to server
+- Server calls Claude Agent SDK with MCP filesystem server configured
+- Claude can call tools (read files, list directories)
+- Response flows back to client and displays as JSON
+
+Next: structured response schema, project model, richer UI.

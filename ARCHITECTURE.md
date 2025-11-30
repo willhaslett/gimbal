@@ -53,6 +53,11 @@ flowchart TB
 
 ## Stack
 
-- **Frontend**: TypeScript, React
-- **Backend**: Node.js, Claude Agent SDK
+- **Frontend**: TypeScript, React, Vite
+- **Backend**: Node.js, Express, Claude Agent SDK
 - **Tools**: MCP servers (stdio transport)
+
+## Validated
+
+- Client → Server → Claude Agent SDK → MCP tool calls → response → client
+- Filesystem MCP server integration working
