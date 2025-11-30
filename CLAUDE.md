@@ -4,25 +4,18 @@ A GUI wrapper for Claude Code, aimed at semi-technical users doing work that pro
 
 ## Concept
 
-- **Project-centric**: Unlimited projects, each initialized from templates with sensible defaults. A project is a container where artifacts accumulate over time.
-- **Project file tree**: Left panel shows files organized by project, not raw filesystem
-- **Structured responses only**: Claude returns data conforming to our domain schema; Gimbal renders it
-- **Batteries-included tools**: MCP servers exposed to Claude for capabilities like data fetching
+- **Project-centric**: Unlimited projects, each a container where artifacts accumulate over time
+- **Structured responses only**: Claude returns JSON conforming to our domain schema; Gimbal renders it
+- **Two UI paths**: Direct controls for fast operations (file tree), chat for Claude-powered tasks
 - **Stack**: TypeScript/React frontend, Node backend, Claude Agent SDK
-
-## Open Questions
-
-- Schema design for structured responses (central design concern)
-- Tool library scope and design
-- Session/state management per project
 
 ## Development
 
 ```bash
 cd ~/code/gimbal
-pnpm install          # Install dependencies
-pnpm --filter @gimbal/server dev   # Run server (port 3001)
-pnpm --filter @gimbal/client dev   # Run client (port 5173)
+pnpm install
+pnpm --filter @gimbal/server dev   # Server on port 3001
+pnpm --filter @gimbal/client dev   # Client on port 5173
 ```
 
 ## Project Structure
@@ -30,19 +23,43 @@ pnpm --filter @gimbal/client dev   # Run client (port 5173)
 ```
 gimbal/
 ├── packages/
-│   ├── client/       # React frontend (Vite)
-│   └── server/       # Node backend (Express, Claude Agent SDK)
-├── archive/          # Legacy Python code (not tracked)
+│   ├── client/          # React frontend (Vite)
+│   └── server/          # Node backend (Express)
+│       └── src/
+│           ├── index.ts      # Express routes
+│           ├── projects.ts   # Project CRUD, stored in ~/.gimbal/
+│           ├── schema.ts     # Response types, system prompt builder
+│           └── types.ts      # Project interface
 ├── ARCHITECTURE.md
 └── CLAUDE.md
 ```
 
+## API
+
+```
+GET  /api/health
+GET  /api/projects
+POST /api/projects          { name, basePath }
+GET  /api/projects/:id
+DELETE /api/projects/:id
+POST /api/projects/:id/query  { prompt }
+```
+
 ## Current Status
 
-Core loop validated:
-- Client sends prompt to server
-- Server calls Claude Agent SDK with MCP filesystem server configured
-- Claude can call tools (read files, list directories)
-- Response flows back to client and displays as JSON
+**Working:**
+- Project CRUD (stored in `~/.gimbal/projects.json`)
+- Project directory template: CLAUDE.md, data/, scripts/, output/
+- Query endpoint calls Claude Agent SDK with project-scoped MCP filesystem
+- Dynamic system prompt with project context and path
+- Sessions are stateless (each query is independent, no conversation memory)
+- Project isolation confirmed via testing
 
-Next: structured response schema, project model, richer UI.
+**Known issues:**
+- Claude returns JSON wrapped in markdown fences (needs parsing)
+- macOS `/tmp` vs `/private/tmp` causes extra MCP round-trip
+
+## Open Questions
+
+- Conversation history management within projects
+- Tool library scope beyond filesystem

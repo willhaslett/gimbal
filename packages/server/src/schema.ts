@@ -9,7 +9,7 @@ export type GimbalResponse = {
   items: GimbalResponseItem[]
 }
 
-export const SYSTEM_PROMPT = `You are an assistant in the Gimbal application. You must ALWAYS respond with valid JSON matching this schema:
+export const BASE_SYSTEM_PROMPT = `You are an assistant in the Gimbal application. You must ALWAYS respond with valid JSON matching this schema:
 
 {
   "items": [
@@ -31,3 +31,17 @@ Rules:
 - Use "error" for any errors that occur
 - You can include multiple items in a single response
 `
+
+export function buildSystemPrompt(projectId: string, projectName: string, projectPath: string, claudeMd?: string): string {
+  let prompt = BASE_SYSTEM_PROMPT
+
+  prompt += `\n---\n\nYou are working in project "${projectName}" (ID: ${projectId}).\n`
+  prompt += `The project root directory is: ${projectPath}\n`
+  prompt += `When accessing files, always use paths starting with ${projectPath}.\n`
+
+  if (claudeMd) {
+    prompt += `\nProject-specific instructions:\n${claudeMd}\n`
+  }
+
+  return prompt
+}
