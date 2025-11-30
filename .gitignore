@@ -21,3 +21,4 @@ dist/
 
 # Archive (keep but don't track changes)
 archive/
+logs/

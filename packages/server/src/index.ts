@@ -1,10 +1,25 @@
 import express from 'express'
 import cors from 'cors'
-import { readFile } from 'fs/promises'
+import { readFile, appendFile, mkdir } from 'fs/promises'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { homedir } from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const LOGS_DIR = join(homedir(), '.gimbal', 'logs')
+
+// Log chat transcripts to ~/.gimbal/logs/
+async function logChat(projectName: string, prompt: string, messages: unknown[]) {
+  try {
+    await mkdir(LOGS_DIR, { recursive: true })
+    const timestamp = new Date().toISOString()
+    const logFile = join(LOGS_DIR, `${projectName}.jsonl`)
+    const entry = JSON.stringify({ timestamp, prompt, messages }) + '\n'
+    await appendFile(logFile, entry)
+  } catch (err) {
+    console.error('[Log] Failed to write chat log:', err)
+  }
+}
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { buildSystemPrompt } from './schema.js'
 import { listProjects, createProject, getProject, deleteProject } from './projects.js'
@@ -334,6 +349,9 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
         sendEvent('status', status)
       }
     }
+
+    // Log the chat transcript
+    await logChat(project.name, prompt, messages)
 
     // Send final result
     sendEvent('result', { messages })

@@ -136,13 +136,21 @@ function validateItem(item: unknown, index: number): GimbalResponseItem | null {
 }
 
 // Parse and validate GimbalResponse from SDK result
+// Strip markdown code block fences if present
+function stripCodeBlock(str: string): string {
+  const trimmed = str.trim()
+  // Match ```json or ``` at start, ``` at end
+  const match = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i)
+  return match ? match[1].trim() : trimmed
+}
+
 function parseGimbalResponse(rawResult: unknown): GimbalResponseItem[] | null {
   try {
     let parsed: unknown = rawResult
 
-    // If string, parse as JSON
+    // If string, strip code blocks and parse as JSON
     if (typeof rawResult === 'string') {
-      const jsonStr = rawResult.trim()
+      const jsonStr = stripCodeBlock(rawResult)
       if (!jsonStr) return null
       parsed = JSON.parse(jsonStr)
     }
