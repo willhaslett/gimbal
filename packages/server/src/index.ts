@@ -12,8 +12,13 @@ import { readFile, appendFile, mkdir } from 'fs/promises'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
+import { createRequire } from 'module'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const require = createRequire(import.meta.url)
+
+// Resolve MCP filesystem server path once at startup (avoids npx overhead)
+const MCP_FILESYSTEM_PATH = require.resolve('@modelcontextprotocol/server-filesystem/dist/index.js')
 const LOGS_DIR = join(homedir(), '.gimbal', 'logs')
 const HISTORY_DIR = join(homedir(), '.gimbal', 'history')
 
@@ -326,8 +331,8 @@ app.post(ROUTES.QUERY, async (req, res) => {
       permissionMode: 'bypassPermissions',
       mcpServers: {
         filesystem: {
-          command: 'npx',
-          args: ['-y', '@modelcontextprotocol/server-filesystem', project.path],
+          command: 'node',
+          args: [MCP_FILESYSTEM_PATH, project.path],
         },
         fetch: {
           command: 'node',
@@ -397,8 +402,8 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
         resume: existingSessionId,
         mcpServers: {
           filesystem: {
-            command: 'npx',
-            args: ['-y', '@modelcontextprotocol/server-filesystem', project.path],
+            command: 'node',
+            args: [MCP_FILESYSTEM_PATH, project.path],
           },
           fetch: {
             command: 'node',
