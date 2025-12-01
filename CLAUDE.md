@@ -233,67 +233,131 @@ Week 3-4: Polish
 
 **Hypothesis to validate:** Do non-AI-adopters find Gimbal useful when they try it? Do they come back?
 
-## Cloud Architecture (2024-11-30)
+## Infrastructure (AWS)
 
-**Principle:** Docker container as the abstraction. Portable between any container runner.
+**Company:** Prodaic (prodaic.com)
+**Product:** Gimbal
 
-**Target stack (AWS):**
+### Architecture
 
 ```
-CloudFront (CDN, optional)
-     ↓
-App Runner (Docker container)
-     ↓
-RDS Postgres + S3
+Cloudflare DNS
+    ├── prodaic.com → S3 (React static site)
+    └── api.prodaic.com → App Runner (Node server)
+                              ↓
+                    RDS Postgres + S3 (project files)
 ```
 
-**Components:**
+### Components
 
-| Component | Service | Purpose |
+| Component | Service | Details |
 |-----------|---------|---------|
-| Compute | App Runner | Runs our Docker image, auto-scales, managed SSL |
-| Database | RDS Postgres | Users, projects metadata, sessions, usage tracking |
-| File storage | S3 | Project files (replaces local filesystem) |
-| Secrets | Secrets Manager | API keys, DB credentials |
-| CDN | CloudFront | Static assets, optional |
-| Auth | Pluggable | Clerk or Supabase initially, roll-our-own later if needed |
+| Static site | S3 + Cloudflare | React app, public bucket with website hosting |
+| API | App Runner | Docker container, 0.25 vCPU, 0.5GB RAM |
+| Database | RDS Postgres 16 | t4g.micro, 20GB, publicly accessible (preview) |
+| Project files | S3 | Versioned, encrypted |
+| Secrets | Secrets Manager | Anthropic API key, DB credentials (auto-generated) |
+| DNS | Cloudflare | SSL termination, CDN |
 
-**Why App Runner over Fargate:**
-- Simpler (no clusters, task definitions, services)
-- Push container → get URL
-- Auto-scales including to zero
-- Sufficient control for a single-service app
+### Infrastructure as Code
 
-**Container contract:**
-- Exposes port 3001
-- Env vars: `DATABASE_URL`, `S3_BUCKET`, `ANTHROPIC_API_KEY`, `STRIPE_KEY`, etc.
-- Stateless - all persistence in Postgres/S3
+All infrastructure is defined in `infra/` using AWS CDK (TypeScript).
 
-**Migration from local prototype:**
+```bash
+cd infra
 
-| Local | Hosted |
-|-------|--------|
-| `~/Documents/Gimbal/` | S3 bucket |
-| `~/.gimbal/projects.json` | Postgres |
-| In-memory session map | Postgres |
-| No auth | Auth provider |
-| User's API key | Our API key |
+# Preview changes
+npx cdk diff
 
-**Auth strategy:**
+# Deploy
+npx cdk deploy
+
+# Post-deployment setup (API key, client deploy, DNS instructions)
+./scripts/post-deploy.sh
+```
+
+**Key files:**
+- `infra/lib/infra-stack.ts` - Main stack definition
+- `infra/scripts/post-deploy.sh` - Post-deployment automation
+- `packages/server/Dockerfile` - Server container image
+
+### TODO Before GA
+
+Comments in `infra-stack.ts` mark security hardening needed before GA:
+
+1. **VPC Connector** - Move RDS to private subnet, add VPC Connector for App Runner (~$30/mo)
+2. **Security group** - Restrict Postgres access to VPC Connector only (currently open to internet)
+3. **Deletion protection** - Enable on RDS
+4. **CloudFront** - Add CDN in front of S3 for better performance (optional)
+
+### Deployment Commands
+
+```bash
+# Full deploy (first time or infra changes)
+cd infra && npx cdk deploy
+
+# Client-only deploy (after client code changes)
+cd packages/client
+VITE_API_URL="https://api.prodaic.com" pnpm build
+aws s3 sync dist/ s3://prodaic-site-ACCOUNT_ID/ --delete
+
+# Server-only deploy (after server code changes)
+cd infra && npx cdk deploy  # Rebuilds and pushes Docker image
+```
+
+### Secrets Management
+
+```bash
+# Set Anthropic API key
+aws secretsmanager put-secret-value \
+    --secret-id prodaic/anthropic-api-key \
+    --secret-string "sk-ant-..."
+
+# Get DB credentials
+aws secretsmanager get-secret-value \
+    --secret-id <DB_SECRET_ARN> \
+    --query SecretString --output text | jq
+```
+
+### Cost Estimate (Preview Phase)
+
+| Service | Est. Monthly |
+|---------|-------------|
+| App Runner | $5-15 (scales to near-zero) |
+| RDS t4g.micro | ~$15 |
+| S3 | <$1 |
+| Secrets Manager | <$1 |
+| **Total** | ~$20-30/mo |
+
+### Auth Strategy (Future)
 
 Pluggable auth behind an interface:
 
 ```typescript
 interface AuthProvider {
-  validateSession(token: string): Promise<string | null>  // returns userId
-  createSession(userId: string): Promise<string>          // returns token
+  validateSession(token: string): Promise<string | null>
+  createSession(userId: string): Promise<string>
   destroySession(token: string): Promise<void>
   createUser(email: string, password: string): Promise<string>
   verifyCredentials(email: string, password: string): Promise<string | null>
 }
 ```
 
-- **Day 1:** Use Clerk or Supabase Auth (fast, proven)
-- **Later:** Swap in roll-our-own if we want to drop the dependency
+- **Day 1:** Clerk or Supabase Auth
+- **Later:** Roll-our-own if needed
 
-App code calls the interface, doesn't know what's behind it.
+## Testing
+
+Unit tests with vitest (46 tests, ~150ms):
+
+```bash
+cd packages/server
+pnpm test        # Run once
+pnpm test:watch  # Watch mode
+```
+
+Tests cover: `schema.ts`, `files.ts`, `projects.ts`, `providers/`
+
+Integration tests (hit real APIs, slow) in `e2e/` directory - excluded from default test run.
+
+Pre-commit hook runs tests automatically before each commit.

@@ -200,7 +200,7 @@ app.get(ROUTES.FILE, async (req, res) => {
     return
   }
 
-  const relativePath = req.params[0] || ''
+  const relativePath = (req.params as Record<string, string>)[0] || ''
 
   try {
     const info = await getFileInfo(project.path, relativePath)
@@ -230,7 +230,7 @@ app.post(ROUTES.FILE, async (req, res) => {
     return
   }
 
-  const relativePath = req.params[0] || ''
+  const relativePath = (req.params as Record<string, string>)[0] || ''
   const { content } = req.body
 
   if (content === undefined) {
@@ -255,7 +255,7 @@ app.put(ROUTES.FILE, async (req, res) => {
     return
   }
 
-  const relativePath = req.params[0] || ''
+  const relativePath = (req.params as Record<string, string>)[0] || ''
 
   try {
     await createProjectDirectory(project.path, relativePath)
@@ -274,7 +274,7 @@ app.delete(ROUTES.FILE, async (req, res) => {
     return
   }
 
-  const relativePath = req.params[0] || ''
+  const relativePath = (req.params as Record<string, string>)[0] || ''
 
   try {
     await deleteProjectFile(project.path, relativePath)
