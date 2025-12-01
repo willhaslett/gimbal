@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { sendQueryStream, StreamEvent } from '../api'
+import { sendQueryStream, StreamEvent, getChatHistory } from '../api'
 
 // Match the schema from server/src/schema.ts
 type GimbalResponseItem =
@@ -33,10 +33,10 @@ function ResponseItem({ item }: { item: GimbalResponseItem }) {
 
     case 'file_created':
       return (
-        <div style={{ padding: '0.5rem', background: '#e8f5e9', borderRadius: '0.25rem', marginBottom: '0.5rem' }}>
+        <div style={{ padding: '0.5rem', background: 'var(--color-success-bg)', borderRadius: '0.25rem', marginBottom: '0.5rem' }}>
           <span style={{ marginRight: '0.5rem' }}>📄</span>
           <strong>Created:</strong> {item.path}
-          {item.description && <span style={{ color: '#666', marginLeft: '0.5rem' }}>— {item.description}</span>}
+          {item.description && <span style={{ color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>— {item.description}</span>}
         </div>
       )
 
@@ -44,7 +44,7 @@ function ResponseItem({ item }: { item: GimbalResponseItem }) {
       return (
         <div style={{ marginBottom: '0.5rem' }}>
           <div style={{ fontWeight: 500, marginBottom: '0.25rem' }}>📖 {item.path}</div>
-          <pre style={{ background: '#f5f5f5', padding: '0.5rem', borderRadius: '0.25rem', overflow: 'auto', fontSize: '0.8rem', maxHeight: '200px' }}>
+          <pre style={{ background: 'var(--color-bg-tertiary)', padding: '0.5rem', borderRadius: '0.25rem', overflow: 'auto', fontSize: '0.8rem', maxHeight: '200px' }}>
             {item.content}
           </pre>
         </div>
@@ -66,7 +66,7 @@ function ResponseItem({ item }: { item: GimbalResponseItem }) {
 
     case 'error':
       return (
-        <div style={{ padding: '0.5rem', background: '#ffebee', borderRadius: '0.25rem', color: '#c62828' }}>
+        <div style={{ padding: '0.5rem', background: 'var(--color-error-bg)', borderRadius: '0.25rem', color: 'var(--color-error-text)' }}>
           <strong>Error:</strong> {item.message}
         </div>
       )
@@ -137,11 +137,12 @@ function validateItem(item: unknown, index: number): GimbalResponseItem | null {
 }
 
 // Parse and validate GimbalResponse from SDK result
-// Strip markdown code block fences if present
+// Extract JSON from markdown code block anywhere in the string
 function stripCodeBlock(str: string): string {
   const trimmed = str.trim()
-  // Match ```json or ``` at start, ``` at end
-  const match = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i)
+  // Match opening ```json and closing ``` at the END of the string
+  // This handles nested code blocks inside the JSON content
+  const match = trimmed.match(/^```(?:json)?\s*\n([\s\S]*)\n```$/i)
   return match ? match[1].trim() : trimmed
 }
 
@@ -194,9 +195,38 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Server maintains session state - no need for client-side history management
+  // Load chat history on mount
+  useEffect(() => {
+    if (historyLoaded) return
+
+    getChatHistory(projectId).then((history) => {
+      console.log('[ChatPanel] Loading history:', history.length, 'entries')
+      const loadedMessages: Message[] = []
+      for (const entry of history) {
+        // Add user message
+        loadedMessages.push({ role: 'user', content: entry.prompt })
+
+        // Parse and add assistant response
+        console.log('[ChatPanel] Parsing response:', entry.response.slice(0, 100))
+        const items = parseGimbalResponse(entry.response)
+        console.log('[ChatPanel] Parsed items:', items)
+        if (items) {
+          loadedMessages.push({ role: 'assistant', content: '', items })
+        } else {
+          // Fallback to raw response
+          loadedMessages.push({ role: 'assistant', content: entry.response })
+        }
+      }
+      setMessages(loadedMessages)
+      setHistoryLoaded(true)
+    }).catch((err) => {
+      console.error('[ChatPanel] Failed to load history:', err)
+      setHistoryLoaded(true)
+    })
+  }, [projectId, historyLoaded])
 
   // Auto-scroll to bottom when messages change or loading state changes
   useEffect(() => {
@@ -273,7 +303,7 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
         {messages.length === 0 && (
-          <div style={{ color: '#666', fontStyle: 'italic' }}>
+          <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
             Ask Claude to help with your project...
           </div>
         )}
@@ -284,12 +314,12 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
               marginBottom: '1rem',
               padding: '0.75rem',
               borderRadius: '0.5rem',
-              background: msg.role === 'user' ? '#e3f2fd' : '#f9f9f9',
+              background: msg.role === 'user' ? 'var(--color-user-bg)' : 'var(--color-assistant-bg)',
               maxWidth: msg.role === 'user' ? '80%' : '100%',
               marginLeft: msg.role === 'user' ? 'auto' : '0',
             }}
           >
-            <div style={{ fontWeight: 500, marginBottom: '0.5rem', fontSize: '0.75rem', color: '#666' }}>
+            <div style={{ fontWeight: 500, marginBottom: '0.5rem', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
               {msg.role === 'user' ? 'You' : 'Claude'}
             </div>
             {msg.items ? (
@@ -307,7 +337,7 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
         ))}
         {loading && (
           <div style={{
-            color: '#666',
+            color: 'var(--color-text-muted)',
             fontStyle: 'italic',
             display: 'flex',
             alignItems: 'center',
@@ -317,7 +347,7 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
               display: 'inline-block',
               width: '8px',
               height: '8px',
-              background: '#2196f3',
+              background: 'var(--color-primary)',
               borderRadius: '50%',
               animation: 'pulse 1.5s ease-in-out infinite'
             }} />
@@ -331,7 +361,7 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
         onSubmit={handleSubmit}
         style={{
           padding: '1rem',
-          borderTop: '1px solid #ddd',
+          borderTop: '1px solid var(--color-border-light)',
           display: 'flex',
           gap: '0.5rem',
         }}
@@ -346,8 +376,10 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
             flex: 1,
             padding: '0.5rem',
             fontSize: '1rem',
-            border: '1px solid #ddd',
+            border: '1px solid var(--color-border-light)',
             borderRadius: '0.25rem',
+            background: 'var(--color-bg)',
+            color: 'var(--color-text)',
           }}
         />
         <button
@@ -357,6 +389,10 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
             padding: '0.5rem 1rem',
             fontSize: '1rem',
             cursor: loading ? 'wait' : 'pointer',
+            background: 'var(--color-primary)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.25rem',
           }}
         >
           Send

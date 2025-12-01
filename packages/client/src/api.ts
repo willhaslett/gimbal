@@ -37,6 +37,19 @@ export async function deleteProject(id: string): Promise<void> {
   await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' })
 }
 
+// Chat history
+export interface ChatHistoryEntry {
+  timestamp: string
+  prompt: string
+  response: string  // Raw response string (may be JSON or markdown-wrapped JSON)
+}
+
+export async function getChatHistory(projectId: string): Promise<ChatHistoryEntry[]> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/history`)
+  const data = await res.json()
+  return data.history
+}
+
 // Files
 export async function listFiles(projectId: string, path = ''): Promise<FileEntry[]> {
   const url = path

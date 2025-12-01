@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { listProjects, createProject, deleteProject, Project, FileEntry, listFiles, readFile } from '../api'
+import { File, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react'
 
 // Format date as relative (today, yesterday, or date)
 function formatDate(dateStr: string): string {
@@ -16,6 +17,78 @@ function formatDate(dateStr: string): string {
 interface FileTreeInlineProps {
   projectId: string
   onFileSelect: (file: FileEntry) => void
+}
+
+// Unified tree node component - works for both files and directories
+interface TreeNodeProps {
+  projectId: string
+  file: FileEntry
+  depth: number
+  expanded: Set<string>
+  onToggle: (path: string) => void
+  onFileSelect: (file: FileEntry) => void
+  files: FileEntry[]
+}
+
+function TreeNode({ projectId, file, depth, expanded, onToggle, onFileSelect, files }: TreeNodeProps) {
+  const isDir = file.type === 'directory'
+  const isExpanded = expanded.has(file.path)
+
+  const children = files.filter((f) => {
+    const parent = f.path.substring(0, f.path.lastIndexOf('/'))
+    return parent === file.path
+  })
+
+  return (
+    <div>
+      <div
+        onClick={async () => {
+          if (isDir) {
+            onToggle(file.path)
+          } else {
+            const fileWithContent = await readFile(projectId, file.path)
+            onFileSelect(fileWithContent)
+          }
+        }}
+        style={{
+          padding: '0.2rem 0.5rem',
+          paddingLeft: `${0.5 + depth * 0.875}rem`,
+          cursor: 'pointer',
+          fontSize: '0.8rem',
+          color: 'var(--color-text-secondary)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.35rem',
+        }}
+        onMouseOver={(e) => (e.currentTarget.style.background = 'var(--color-bg-hover)')}
+        onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        <span style={{ width: '12px', display: 'flex', alignItems: 'center', marginTop: '0.15rem', flexShrink: 0 }}>
+          {isDir && (isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />)}
+        </span>
+        <span style={{ marginTop: '0.1rem', flexShrink: 0, color: isDir ? 'var(--color-icon-folder)' : 'var(--color-icon-file)' }}>
+          {isDir ? (
+            isExpanded ? <FolderOpen size={14} /> : <Folder size={14} />
+          ) : (
+            <File size={14} />
+          )}
+        </span>
+        <span>{file.name}</span>
+      </div>
+      {isDir && isExpanded && children.map((child) => (
+        <TreeNode
+          key={child.path}
+          projectId={projectId}
+          file={child}
+          depth={depth + 1}
+          expanded={expanded}
+          onToggle={onToggle}
+          onFileSelect={onFileSelect}
+          files={files}
+        />
+      ))}
+    </div>
+  )
 }
 
 function FileTreeInline({ projectId, onFileSelect }: FileTreeInlineProps) {
@@ -45,52 +118,25 @@ function FileTreeInline({ projectId, onFileSelect }: FileTreeInlineProps) {
     }
   }
 
-  const renderFiles = (parentPath: string, depth: number): JSX.Element[] => {
-    return files
-      .filter((f) => {
-        if (parentPath === '') {
-          return !f.path.includes('/')
-        }
-        const parent = f.path.substring(0, f.path.lastIndexOf('/'))
-        return parent === parentPath
-      })
-      .map((file) => (
-        <div key={file.path}>
-          <div
-            onClick={async () => {
-              console.log('[FileTreeInline] clicked:', file.path, file.type)
-              if (file.type === 'directory') {
-                toggleDir(file.path)
-              } else {
-                console.log('[FileTreeInline] fetching content for:', file.path)
-                const fileWithContent = await readFile(projectId, file.path)
-                console.log('[FileTreeInline] got file:', fileWithContent?.path, 'content length:', fileWithContent?.content?.length)
-                onFileSelect(fileWithContent)
-              }
-            }}
-            style={{
-              padding: '0.25rem 0.5rem',
-              paddingLeft: `${1 + depth * 0.75}rem`,
-              cursor: 'pointer',
-              fontSize: '0.8rem',
-              color: '#555',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
-          >
-            <span style={{ fontSize: '0.7rem' }}>
-              {file.type === 'directory' ? (expanded.has(file.path) ? '▼' : '▶') : ''}
-            </span>
-            <span>{file.type === 'directory' ? '📁' : '📄'}</span>
-            <span>{file.name}</span>
-          </div>
-          {file.type === 'directory' && expanded.has(file.path) && renderFiles(file.path, depth + 1)}
-        </div>
-      ))
-  }
+  // Get root-level files only
+  const rootFiles = files.filter((f) => !f.path.includes('/'))
 
-  return <div style={{ background: '#f0f4f8' }}>{renderFiles('', 0)}</div>
+  return (
+    <div>
+      {rootFiles.map((file) => (
+        <TreeNode
+          key={file.path}
+          projectId={projectId}
+          file={file}
+          depth={1}
+          expanded={expanded}
+          onToggle={toggleDir}
+          onFileSelect={onFileSelect}
+          files={files}
+        />
+      ))}
+    </div>
+  )
 }
 
 interface Props {
@@ -144,7 +190,7 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
       <div
         style={{
           padding: '1rem',
-          borderBottom: '1px solid #e0e0e0',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <span
@@ -152,7 +198,7 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
             fontFamily: '"Baloo 2", "Comic Sans MS", "Marker Felt", cursive',
             fontSize: '1.5rem',
             fontWeight: 700,
-            color: '#2196f3',
+            color: 'var(--color-primary)',
             letterSpacing: '-0.5px',
           }}
         >
@@ -164,17 +210,17 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
       <div
         style={{
           padding: '0.75rem 1rem',
-          borderBottom: '1px solid #e0e0e0',
+          borderBottom: '1px solid var(--color-border)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: '0.75rem', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Projects</span>
+        <span style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Projects</span>
         <button
           onClick={() => setShowCreate(true)}
           style={{
-            background: '#2196f3',
+            background: 'var(--color-primary)',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
@@ -193,8 +239,8 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
           onSubmit={handleCreate}
           style={{
             padding: '0.75rem',
-            borderBottom: '1px solid #e0e0e0',
-            background: '#f5f5f5',
+            borderBottom: '1px solid var(--color-border)',
+            background: 'var(--color-bg-tertiary)',
           }}
         >
           <input
@@ -206,10 +252,12 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
             style={{
               width: '100%',
               padding: '0.5rem',
-              border: '1px solid #ddd',
+              border: '1px solid var(--color-border-light)',
               borderRadius: '4px',
               fontSize: '0.875rem',
               marginBottom: '0.5rem',
+              background: 'var(--color-bg)',
+              color: 'var(--color-text)',
             }}
           />
           <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -219,7 +267,7 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
               style={{
                 flex: 1,
                 padding: '0.375rem',
-                background: newName.trim() ? '#2196f3' : '#ccc',
+                background: newName.trim() ? 'var(--color-primary)' : 'var(--color-disabled)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
@@ -237,11 +285,12 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
               }}
               style={{
                 padding: '0.375rem 0.75rem',
-                background: 'white',
-                border: '1px solid #ddd',
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border-light)',
                 borderRadius: '4px',
                 fontSize: '0.75rem',
                 cursor: 'pointer',
+                color: 'var(--color-text)',
               }}
             >
               Cancel
@@ -253,7 +302,7 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
       {/* Project List with inline file trees */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {projects.length === 0 && !showCreate && (
-          <div style={{ padding: '1rem', color: '#999', fontSize: '0.875rem', textAlign: 'center' }}>
+          <div style={{ padding: '1rem', color: 'var(--color-text-faint)', fontSize: '0.875rem', textAlign: 'center' }}>
             No projects yet
           </div>
         )}
@@ -261,26 +310,32 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
           const isSelected = selectedProject?.id === project.id
           return (
             <div key={project.id}>
-              {/* Project Header */}
+              {/* Project Header - depth 0 of tree */}
               <div
                 onClick={() => onSelectProject(isSelected ? null : project)}
                 onMouseEnter={() => setHoveredId(project.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 style={{
-                  padding: '0.75rem 1rem',
+                  padding: '0.2rem 0.5rem',
+                  paddingLeft: '0.5rem',
                   cursor: 'pointer',
-                  background: isSelected ? '#e3f2fd' : 'transparent',
-                  borderLeft: isSelected ? '3px solid #2196f3' : '3px solid transparent',
+                  background: isSelected ? 'var(--color-primary-light)' : 'transparent',
                   display: 'flex',
-                  justifyContent: 'space-between',
                   alignItems: 'center',
+                  gap: '0.35rem',
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: isSelected ? 600 : 500, fontSize: '0.875rem' }}>
-                    {isSelected ? '▼ ' : '▶ '}{project.name}
+                <span style={{ width: '12px', display: 'flex', alignItems: 'center' }}>
+                  {isSelected ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </span>
+                <span style={{ color: 'var(--color-primary)' }}>
+                  <Folder size={14} />
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: isSelected ? 600 : 500, fontSize: '0.8rem' }}>
+                    {project.name}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#999', marginLeft: '1rem' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--color-text-faint)' }}>
                     {formatDate(project.createdAt)}
                   </div>
                 </div>
@@ -290,7 +345,7 @@ export function ProjectList({ selectedProject, onSelectProject, onFileSelect, fi
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#999',
+                      color: 'var(--color-text-faint)',
                       cursor: 'pointer',
                       padding: '0.25rem',
                       fontSize: '0.875rem',

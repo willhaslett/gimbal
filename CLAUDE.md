@@ -88,6 +88,11 @@ PUT    /api/projects/:id/files/*       # Create directory
 DELETE /api/projects/:id/files/*       # Delete file/empty directory
 ```
 
+**Chat History:**
+```
+GET    /api/projects/:id/history       # Get chat history for UI display
+```
+
 **Query (Claude-powered):**
 ```
 POST   /api/projects/:id/query         # Batch response { prompt }
@@ -142,6 +147,16 @@ type GimbalResponseItem =
 - Enables back-references like "add content to it" that reference earlier context
 - Sessions persist in memory per server process (reset on restart)
 
+### M6: Dark Mode & UI Polish (Done)
+- CSS custom properties for theming with `prefers-color-scheme` media query
+- Automatic light/dark mode based on system preference
+- lucide-react icons for file tree (File, Folder, FolderOpen, ChevronRight/Down)
+- Unified tree component with proper indentation
+- Structured logging with pino + pino-pretty
+- Chat history persistence (`~/.gimbal/history/{projectId}.jsonl`)
+- History restored on page load via `/api/projects/:id/history` endpoint
+- Fixed JSON parsing for responses with nested code blocks
+
 ## Current Status
 
 **Working:**
@@ -151,17 +166,17 @@ type GimbalResponseItem =
 - Web search and file downloads (Census data validated)
 - Schema validation with detailed error logging
 - Multi-turn conversations with session resumption
+- Dark mode (follows system preference)
+- Chat history persists across page refreshes
 
 **Known Issues:**
-- Response rendering sometimes shows raw JSON (instrumentation added to diagnose)
 - macOS `/tmp` vs `/private/tmp` causes extra MCP round-trip
-- Sessions reset when server restarts (in-memory storage)
+- SDK sessions reset when server restarts (in-memory storage)
 
 ## Next Steps
 
-- [x] Debug response extraction path using console logs
 - [ ] User testing with Sara (target user)
-- [ ] Persistent session storage (survive server restarts)
+- [ ] Persistent SDK session storage (survive server restarts)
 - [ ] Error recovery UX (retry, clear)
 
 ## Cloud Architecture (2024-11-30)

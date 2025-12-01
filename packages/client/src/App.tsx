@@ -25,8 +25,8 @@ function App() {
       <div
         style={{
           width: '260px',
-          borderRight: '1px solid #e0e0e0',
-          background: '#fafafa',
+          borderRight: '1px solid var(--color-border)',
+          background: 'var(--color-bg-secondary)',
           overflow: 'hidden',
         }}
       >
@@ -53,7 +53,7 @@ function App() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#999',
+              color: 'var(--color-text-faint)',
             }}
           >
             Select or create a project to get started

@@ -31,7 +31,7 @@ export function FileViewer({ file, onClose }: Props) {
     >
       <div
         style={{
-          background: 'white',
+          background: 'var(--color-bg)',
           borderRadius: '0.5rem',
           width: '80%',
           maxWidth: '800px',
@@ -44,14 +44,26 @@ export function FileViewer({ file, onClose }: Props) {
         <div
           style={{
             padding: '1rem',
-            borderBottom: '1px solid #ddd',
+            borderBottom: '1px solid var(--color-border-light)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
           <span style={{ fontWeight: 500 }}>{file.path}</span>
-          <button onClick={onClose}>Close</button>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '0.375rem 0.75rem',
+              background: 'var(--color-bg-tertiary)',
+              border: '1px solid var(--color-border-light)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              color: 'var(--color-text)',
+            }}
+          >
+            Close
+          </button>
         </div>
         {isMarkdown ? (
           <div
@@ -74,7 +86,8 @@ export function FileViewer({ file, onClose }: Props) {
               padding: '1rem',
               overflow: 'auto',
               fontSize: '0.875rem',
-              background: '#f8f8f8',
+              background: 'var(--color-bg-tertiary)',
+              color: 'var(--color-text)',
             }}
           >
             {file.content}

@@ -1,5 +1,13 @@
 import express from 'express'
 import cors from 'cors'
+import pino from 'pino'
+
+const logger = pino({
+  transport: {
+    target: 'pino-pretty',
+    options: { colorize: true }
+  }
+})
 import { readFile, appendFile, mkdir } from 'fs/promises'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -7,11 +15,19 @@ import { homedir } from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const LOGS_DIR = join(homedir(), '.gimbal', 'logs')
+const HISTORY_DIR = join(homedir(), '.gimbal', 'history')
 
 // Session storage: projectId -> sessionId (for multi-turn conversations)
 const projectSessions = new Map<string, string>()
 
-// Log chat transcripts to ~/.gimbal/logs/
+// Chat history entry - clean format for UI display
+interface ChatHistoryEntry {
+  timestamp: string
+  prompt: string
+  response: string  // The parsed GimbalResponse JSON string
+}
+
+// Log chat transcripts to ~/.gimbal/logs/ (full SDK format for debugging)
 async function logChat(projectName: string, prompt: string, messages: unknown[]) {
   try {
     await mkdir(LOGS_DIR, { recursive: true })
@@ -20,7 +36,33 @@ async function logChat(projectName: string, prompt: string, messages: unknown[])
     const entry = JSON.stringify({ timestamp, prompt, messages }) + '\n'
     await appendFile(logFile, entry)
   } catch (err) {
-    console.error('[Log] Failed to write chat log:', err)
+    logger.error({ event: 'log_error', error: String(err) })
+  }
+}
+
+// Save clean chat history for UI display
+async function saveChatHistory(projectId: string, prompt: string, response: string) {
+  try {
+    await mkdir(HISTORY_DIR, { recursive: true })
+    const timestamp = new Date().toISOString()
+    const historyFile = join(HISTORY_DIR, `${projectId}.jsonl`)
+    const entry: ChatHistoryEntry = { timestamp, prompt, response }
+    await appendFile(historyFile, JSON.stringify(entry) + '\n')
+  } catch (err) {
+    logger.error({ event: 'history_save_error', error: String(err) })
+  }
+}
+
+// Load chat history for a project
+async function loadChatHistory(projectId: string): Promise<ChatHistoryEntry[]> {
+  try {
+    const historyFile = join(HISTORY_DIR, `${projectId}.jsonl`)
+    const content = await readFile(historyFile, 'utf-8')
+    const lines = content.trim().split('\n').filter(Boolean)
+    return lines.map(line => JSON.parse(line) as ChatHistoryEntry)
+  } catch (err) {
+    // No history file yet, that's fine
+    return []
   }
 }
 import { query } from '@anthropic-ai/claude-agent-sdk'
@@ -40,6 +82,7 @@ const ROUTES = {
   HEALTH: '/api/health',
   PROJECTS: '/api/projects',
   PROJECT: '/api/projects/:id',
+  HISTORY: '/api/projects/:id/history',
   QUERY: '/api/projects/:id/query',
   QUERY_STREAM: '/api/projects/:id/query/stream',
   FILES: '/api/projects/:id/files',
@@ -119,6 +162,18 @@ app.delete(ROUTES.PROJECT, async (req, res) => {
     return
   }
   res.json({ success: true })
+})
+
+// Chat history endpoint - returns prompt/response pairs for UI display
+app.get(ROUTES.HISTORY, async (req, res) => {
+  const project = await getProject(req.params.id)
+  if (!project) {
+    res.status(404).json({ error: 'project not found' })
+    return
+  }
+
+  const history = await loadChatHistory(project.id)
+  res.json({ history })
 })
 
 // File routes - direct file operations without Claude
@@ -328,7 +383,8 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
 
   // Check for existing session to resume
   const existingSessionId = projectSessions.get(project.id)
-  console.log('[Query] Project:', project.id, 'Session:', existingSessionId || 'new')
+  const startTime = Date.now()
+  logger.info({ event: 'query_start', projectId: project.id, session: existingSessionId || 'new', prompt: prompt.slice(0, 80) })
 
   try {
     for await (const message of query({
@@ -357,7 +413,6 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
       const msg = message as { type?: string; session_id?: string }
       if (msg.type === 'result' && msg.session_id) {
         projectSessions.set(project.id, msg.session_id)
-        console.log('[Query] Stored session:', msg.session_id)
       }
 
       // Send status updates for tool use
@@ -367,13 +422,24 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
       }
     }
 
-    // Log the chat transcript
+    // Log the chat transcript (full SDK format for debugging)
     await logChat(project.name, prompt, messages)
+
+    // Extract and save the response for chat history
+    const resultMessage = messages.find((m) => (m as { type?: string }).type === 'result') as { result?: unknown } | undefined
+    const rawResult = resultMessage?.result
+    const responseStr = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult)
+    await saveChatHistory(project.id, prompt, responseStr)
+
+    const durationMs = Date.now() - startTime
+    logger.info({ event: 'query_done', projectId: project.id, durationMs, messageCount: messages.length })
 
     // Send final result
     sendEvent('result', { messages })
     sendEvent('done', null)
   } catch (err) {
+    const durationMs = Date.now() - startTime
+    logger.error({ event: 'query_error', projectId: project.id, durationMs, error: String(err) })
     sendEvent('error', { message: String(err) })
   }
 
@@ -381,5 +447,5 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
 })
 
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`)
+  logger.info({ event: 'server_start', port, url: `http://localhost:${port}` })
 })
