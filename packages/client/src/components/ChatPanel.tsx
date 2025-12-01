@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { sendQueryStream, StreamEvent } from '../api'
 
 // Match the schema from server/src/schema.ts
@@ -26,7 +27,7 @@ function ResponseItem({ item }: { item: GimbalResponseItem }) {
     case 'text':
       return (
         <div className="markdown-content">
-          <Markdown>{item.content}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm]}>{item.content}</Markdown>
         </div>
       )
 
@@ -193,8 +194,14 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Server maintains session state - no need for client-side history management
+
+  // Auto-scroll to bottom when messages change or loading state changes
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -317,6 +324,7 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
             {status || 'Thinking...'}
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       <form

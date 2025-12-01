@@ -1,4 +1,5 @@
 import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { FileEntry } from '../api'
 
 interface Props {
@@ -63,7 +64,7 @@ export function FileViewer({ file, onClose }: Props) {
             }}
             className="markdown-content"
           >
-            <Markdown>{file.content || ''}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]}>{file.content || ''}</Markdown>
           </div>
         ) : (
           <pre

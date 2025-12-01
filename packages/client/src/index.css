@@ -27,6 +27,10 @@ input, select, button {
 .markdown-content pre { background: #f5f5f5; padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
 .markdown-content pre code { background: none; padding: 0; }
 .markdown-content blockquote { border-left: 3px solid #ddd; margin: 0.5rem 0; padding-left: 1rem; color: #666; }
+.markdown-content table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+.markdown-content th, .markdown-content td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+.markdown-content th { background: #f5f5f5; font-weight: 600; }
+.markdown-content tr:nth-child(even) { background: #fafafa; }
 
 /* Status indicator animation */
 @keyframes pulse {

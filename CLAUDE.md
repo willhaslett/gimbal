@@ -159,7 +159,7 @@ type GimbalResponseItem =
 
 ## Next Steps
 
-- [ ] Debug response extraction path using console logs
+- [x] Debug response extraction path using console logs
 - [ ] User testing with Sara (target user)
 - [ ] Persistent session storage (survive server restarts)
 - [ ] Error recovery UX (retry, clear)
