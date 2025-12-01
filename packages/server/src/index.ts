@@ -9,16 +9,9 @@ const logger = pino({
   }
 })
 import { readFile, appendFile, mkdir } from 'fs/promises'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { join } from 'path'
 import { homedir } from 'os'
-import { createRequire } from 'module'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const require = createRequire(import.meta.url)
-
-// Resolve MCP filesystem server path once at startup (avoids npx overhead)
-const MCP_FILESYSTEM_PATH = require.resolve('@modelcontextprotocol/server-filesystem/dist/index.js')
 const LOGS_DIR = join(homedir(), '.gimbal', 'logs')
 const HISTORY_DIR = join(homedir(), '.gimbal', 'history')
 
@@ -70,7 +63,7 @@ async function loadChatHistory(projectId: string): Promise<ChatHistoryEntry[]> {
     return []
   }
 }
-import { query } from '@anthropic-ai/claude-agent-sdk'
+import { getProvider } from './providers/index.js'
 import { buildSystemPrompt } from './schema.js'
 import { listProjects, createProject, getProject, deleteProject } from './projects.js'
 import {
@@ -321,31 +314,15 @@ app.post(ROUTES.QUERY, async (req, res) => {
   }
 
   const systemPrompt = buildSystemPrompt(project.id, project.name, project.path, claudeMd)
-  const messages: unknown[] = []
+  const provider = getProvider()
 
-  for await (const message of query({
+  const result = await provider.query({
     prompt,
-    options: {
-      cwd: project.path,
-      systemPrompt,
-      permissionMode: 'bypassPermissions',
-      mcpServers: {
-        filesystem: {
-          command: 'node',
-          args: [MCP_FILESYSTEM_PATH, project.path],
-        },
-        fetch: {
-          command: 'node',
-          args: [join(__dirname, '../../mcp-fetch/dist/index.js')],
-        },
-      },
-      // No allowedTools restriction - Claude has access to all tools
-    },
-  })) {
-    messages.push(message)
-  }
+    projectPath: project.path,
+    systemPrompt,
+  })
 
-  res.json({ messages })
+  res.json({ messages: result.messages })
 })
 
 // Streaming query endpoint with SSE for real-time status updates
@@ -384,7 +361,7 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
   }
 
   const systemPrompt = buildSystemPrompt(project.id, project.name, project.path, claudeMd)
-  const messages: unknown[] = []
+  const provider = getProvider()
 
   // Check for existing session to resume
   const existingSessionId = projectSessions.get(project.id)
@@ -392,55 +369,41 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
   logger.info({ event: 'query_start', projectId: project.id, session: existingSessionId || 'new', prompt: prompt.slice(0, 80) })
 
   try {
-    for await (const message of query({
-      prompt,
-      options: {
-        cwd: project.path,
+    const result = await provider.query(
+      {
+        prompt,
+        projectPath: project.path,
         systemPrompt,
-        permissionMode: 'bypassPermissions',
-        // Resume existing session if available (SDK maintains conversation history)
-        resume: existingSessionId,
-        mcpServers: {
-          filesystem: {
-            command: 'node',
-            args: [MCP_FILESYSTEM_PATH, project.path],
-          },
-          fetch: {
-            command: 'node',
-            args: [join(__dirname, '../../mcp-fetch/dist/index.js')],
-          },
-        },
+        sessionId: existingSessionId,
       },
-    })) {
-      messages.push(message)
-
-      // Extract session_id from result message and store it
-      const msg = message as { type?: string; session_id?: string }
-      if (msg.type === 'result' && msg.session_id) {
-        projectSessions.set(project.id, msg.session_id)
+      (message) => {
+        // Send status updates for tool use
+        const status = getStatusFromMessage(message)
+        if (status) {
+          sendEvent('status', status)
+        }
       }
+    )
 
-      // Send status updates for tool use
-      const status = getStatusFromMessage(message)
-      if (status) {
-        sendEvent('status', status)
-      }
+    // Store session ID for multi-turn conversations
+    if (result.sessionId) {
+      projectSessions.set(project.id, result.sessionId)
     }
 
     // Log the chat transcript (full SDK format for debugging)
-    await logChat(project.name, prompt, messages)
+    await logChat(project.name, prompt, result.messages)
 
     // Extract and save the response for chat history
-    const resultMessage = messages.find((m) => (m as { type?: string }).type === 'result') as { result?: unknown } | undefined
+    const resultMessage = result.messages.find((m) => (m as { type?: string }).type === 'result') as { result?: unknown } | undefined
     const rawResult = resultMessage?.result
     const responseStr = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult)
     await saveChatHistory(project.id, prompt, responseStr)
 
     const durationMs = Date.now() - startTime
-    logger.info({ event: 'query_done', projectId: project.id, durationMs, messageCount: messages.length })
+    logger.info({ event: 'query_done', projectId: project.id, durationMs, messageCount: result.messages.length })
 
     // Send final result
-    sendEvent('result', { messages })
+    sendEvent('result', { messages: result.messages })
     sendEvent('done', null)
   } catch (err) {
     const durationMs = Date.now() - startTime
