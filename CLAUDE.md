@@ -135,6 +135,13 @@ type GimbalResponseItem =
 - Response schema validation with console instrumentation
 - Graceful fallback when parsing fails
 
+### M5: Session-Based Conversations (Done)
+- Server maintains `Map<projectId, sessionId>` for multi-turn conversations
+- Uses SDK's `resume` option to continue sessions (proper Claude API format)
+- Client simplified: no history management, server handles it
+- Enables back-references like "add content to it" that reference earlier context
+- Sessions persist in memory per server process (reset on restart)
+
 ## Current Status
 
 **Working:**
@@ -143,16 +150,18 @@ type GimbalResponseItem =
 - Claude chat with streaming status updates
 - Web search and file downloads (Census data validated)
 - Schema validation with detailed error logging
+- Multi-turn conversations with session resumption
 
 **Known Issues:**
 - Response rendering sometimes shows raw JSON (instrumentation added to diagnose)
 - macOS `/tmp` vs `/private/tmp` causes extra MCP round-trip
+- Sessions reset when server restarts (in-memory storage)
 
 ## Next Steps
 
 - [ ] Debug response extraction path using console logs
 - [ ] User testing with Sara (target user)
-- [ ] Conversation history within projects
+- [ ] Persistent session storage (survive server restarts)
 - [ ] Error recovery UX (retry, clear)
 
 ## Cloud Architecture (2024-11-30)

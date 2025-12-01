@@ -72,6 +72,7 @@ export async function sendQuery(projectId: string, prompt: string): Promise<unkn
 }
 
 // Streaming query with status updates
+// Server maintains session state - no need to pass history from client
 export interface StreamEvent {
   type: 'status' | 'result' | 'error' | 'done'
   data: unknown

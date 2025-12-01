@@ -8,6 +8,9 @@ import { homedir } from 'os'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const LOGS_DIR = join(homedir(), '.gimbal', 'logs')
 
+// Session storage: projectId -> sessionId (for multi-turn conversations)
+const projectSessions = new Map<string, string>()
+
 // Log chat transcripts to ~/.gimbal/logs/
 async function logChat(projectName: string, prompt: string, messages: unknown[]) {
   try {
@@ -286,8 +289,9 @@ app.post(ROUTES.QUERY, async (req, res) => {
 })
 
 // Streaming query endpoint with SSE for real-time status updates
+// Uses SDK session resumption for proper multi-turn conversations
 app.post(ROUTES.QUERY_STREAM, async (req, res) => {
-  const { prompt } = req.body
+  const { prompt } = req.body as { prompt: string }
   const project = await getProject(req.params.id)
 
   if (!project) {
@@ -322,6 +326,10 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
   const systemPrompt = buildSystemPrompt(project.id, project.name, project.path, claudeMd)
   const messages: unknown[] = []
 
+  // Check for existing session to resume
+  const existingSessionId = projectSessions.get(project.id)
+  console.log('[Query] Project:', project.id, 'Session:', existingSessionId || 'new')
+
   try {
     for await (const message of query({
       prompt,
@@ -329,6 +337,8 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
         cwd: project.path,
         systemPrompt,
         permissionMode: 'bypassPermissions',
+        // Resume existing session if available (SDK maintains conversation history)
+        resume: existingSessionId,
         mcpServers: {
           filesystem: {
             command: 'npx',
@@ -342,6 +352,13 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
       },
     })) {
       messages.push(message)
+
+      // Extract session_id from result message and store it
+      const msg = message as { type?: string; session_id?: string }
+      if (msg.type === 'result' && msg.session_id) {
+        projectSessions.set(project.id, msg.session_id)
+        console.log('[Query] Stored session:', msg.session_id)
+      }
 
       // Send status updates for tool use
       const status = getStatusFromMessage(message)

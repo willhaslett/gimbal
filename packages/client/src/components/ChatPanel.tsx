@@ -194,6 +194,8 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
+  // Server maintains session state - no need for client-side history management
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || loading) return
