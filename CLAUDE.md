@@ -14,6 +14,16 @@ Gimbal offers:
 - **One opinionated thing done well** — project workspace + AI collaborator
 - **Simple enough** — doesn't scare off non-technical users
 
+**AI Provider Strategy:**
+
+Two modes, designed for extensibility:
+
+1. **Gimbal-provided AI** (default) — We provide the AI, user pays us. No setup required. This is the primary mode for the target customer.
+
+2. **Bring-your-own-model** (future) — User connects their own AI account. Starts with Claude (Max subscription or API key), could expand to OpenAI, etc. Appeals to power users and cost-conscious users at scale.
+
+Build the Gimbal-provided version first. Design with provider abstraction in mind so BYOM is additive, not a rewrite.
+
 **Secondary: Technical users who want something lightweight**
 
 Coders who don't need a full AI IDE, just a clean way to manage a task with AI assistance. The project *is* the filesystem — open it in VS Code alongside Gimbal if you want. `scripts/` is right there. Power is available but not mandatory.
