@@ -198,32 +198,92 @@ type GimbalResponseItem =
 
 ## Next Steps
 
-**Current status:** Local prototype complete. Validating product hypothesis before cloud migration.
+**Current status:** Local prototype complete. Building toward private preview.
+
+**Target:** Private preview in ~1 month (end of December 2024). Solid and polished, not rushed.
 
 **Path to hosted preview:**
-- [ ] Cloud migration (auth, multi-tenant, provider-managed API keys)
-- [ ] Free tier with usage caps
-- [ ] Small private preview to test hypothesis
+
+Week 1-2: Infrastructure
+- [ ] Deploy to hosted platform (Railway/Render/Fly)
+- [ ] Auth integration (Clerk or Supabase)
+- [ ] Provider-managed API keys (users don't need their own)
+- [ ] Per-user file storage (simple persistent volume initially, S3 later)
+
+Week 2-3: Billing & Limits
+- [ ] Usage tracking (queries per user)
+- [ ] Free tier with caps
+- [ ] Stripe integration ($10/mo subscription)
+
+Week 3-4: Polish
+- [ ] Landing page
+- [ ] Onboarding flow
+- [ ] Error handling & edge cases
+- [ ] Visual polish, mobile-responsive
 
 **Hypothesis to validate:** Do non-AI-adopters find Gimbal useful when they try it? Do they come back?
 
 ## Cloud Architecture (2024-11-30)
 
-Target deployment stack (AWS):
+**Principle:** Docker container as the abstraction. Portable between any container runner.
+
+**Target stack (AWS):**
 
 ```
-CloudFront → S3 (React app)
+CloudFront (CDN, optional)
      ↓
-API Gateway → Fargate (Node server)
+App Runner (Docker container)
      ↓
-S3 (projects) + DynamoDB (metadata)
+RDS Postgres + S3
 ```
 
 **Components:**
-- **Fargate**: Node server container, handles Claude SDK calls and script execution
-- **S3**: Project file storage (replaces local filesystem)
-- **DynamoDB**: Project/user metadata
-- **CloudFront + S3**: Static React frontend
-- **Cognito**: User auth (links users to projects)
 
-**Script execution isolation** (future): Currently same-container with sandboxing; may move to per-execution Fargate tasks or Lambda for stronger isolation when needed.
+| Component | Service | Purpose |
+|-----------|---------|---------|
+| Compute | App Runner | Runs our Docker image, auto-scales, managed SSL |
+| Database | RDS Postgres | Users, projects metadata, sessions, usage tracking |
+| File storage | S3 | Project files (replaces local filesystem) |
+| Secrets | Secrets Manager | API keys, DB credentials |
+| CDN | CloudFront | Static assets, optional |
+| Auth | Pluggable | Clerk or Supabase initially, roll-our-own later if needed |
+
+**Why App Runner over Fargate:**
+- Simpler (no clusters, task definitions, services)
+- Push container → get URL
+- Auto-scales including to zero
+- Sufficient control for a single-service app
+
+**Container contract:**
+- Exposes port 3001
+- Env vars: `DATABASE_URL`, `S3_BUCKET`, `ANTHROPIC_API_KEY`, `STRIPE_KEY`, etc.
+- Stateless - all persistence in Postgres/S3
+
+**Migration from local prototype:**
+
+| Local | Hosted |
+|-------|--------|
+| `~/Documents/Gimbal/` | S3 bucket |
+| `~/.gimbal/projects.json` | Postgres |
+| In-memory session map | Postgres |
+| No auth | Auth provider |
+| User's API key | Our API key |
+
+**Auth strategy:**
+
+Pluggable auth behind an interface:
+
+```typescript
+interface AuthProvider {
+  validateSession(token: string): Promise<string | null>  // returns userId
+  createSession(userId: string): Promise<string>          // returns token
+  destroySession(token: string): Promise<void>
+  createUser(email: string, password: string): Promise<string>
+  verifyCredentials(email: string, password: string): Promise<string | null>
+}
+```
+
+- **Day 1:** Use Clerk or Supabase Auth (fast, proven)
+- **Later:** Swap in roll-our-own if we want to drop the dependency
+
+App code calls the interface, doesn't know what's behind it.
