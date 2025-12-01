@@ -1,6 +1,29 @@
 # Gimbal
 
-A GUI wrapper for Claude Code, aimed at semi-technical users doing work that produces digital artifacts.
+A simple AI workspace for people who want to use AI for serious work.
+
+## Target Customer (2024-11-30)
+
+**Primary: SMBs and individuals who haven't adopted AI yet**
+
+These people are curious about AI but haven't crossed the adoption threshold. They don't have Anthropic or OpenAI accounts. They've heard AI can help with their work but the existing options feel either too technical (Claude Code, Cursor) or require committing to a $20/mo subscription before they even know if it's useful (Claude Pro).
+
+Gimbal offers:
+- **No setup friction** — no "go get an API key first"
+- **Free tier to try** — lower the barrier to actually experiencing AI for real work
+- **One opinionated thing done well** — project workspace + AI collaborator
+- **Simple enough** — doesn't scare off non-technical users
+
+**Secondary: Technical users who want something lightweight**
+
+Coders who don't need a full AI IDE, just a clean way to manage a task with AI assistance. The project *is* the filesystem — open it in VS Code alongside Gimbal if you want. `scripts/` is right there. Power is available but not mandatory.
+
+**Design principle: Simple defaults, power underneath**
+
+- **Surface:** Clean, opinionated, no decisions required. "Here's your project, talk to the AI."
+- **Depth:** If you want to poke around, it's just a folder. See what the AI made, edit it, run scripts yourself, extend it.
+
+The same product serves both audiences because complexity is opt-in.
 
 ## Concept
 
@@ -175,9 +198,14 @@ type GimbalResponseItem =
 
 ## Next Steps
 
-- [ ] User testing with Sara (target user)
-- [ ] Persistent SDK session storage (survive server restarts)
-- [ ] Error recovery UX (retry, clear)
+**Current status:** Local prototype complete. Validating product hypothesis before cloud migration.
+
+**Path to hosted preview:**
+- [ ] Cloud migration (auth, multi-tenant, provider-managed API keys)
+- [ ] Free tier with usage caps
+- [ ] Small private preview to test hypothesis
+
+**Hypothesis to validate:** Do non-AI-adopters find Gimbal useful when they try it? Do they come back?
 
 ## Cloud Architecture (2024-11-30)
 
