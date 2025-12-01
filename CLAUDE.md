@@ -1,6 +1,6 @@
 # Gimbal
 
-A simple AI workspace for people who want to use AI for serious work.
+Get things done with AI.
 
 ## Target Customer (2024-11-30)
 
