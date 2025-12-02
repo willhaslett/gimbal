@@ -96,8 +96,10 @@ export class InfraStack extends cdk.Stack {
 
     // === App Runner Service ===
     // Build Docker image from server package
+    // NOTE: Must target linux/amd64 because App Runner runs on x86_64
     const serverImage = new ecr_assets.DockerImageAsset(this, 'ServerImage', {
       directory: path.join(__dirname, '../../packages/server'),
+      platform: ecr_assets.Platform.LINUX_AMD64,
     });
 
     // IAM role for App Runner to access S3 and Secrets
