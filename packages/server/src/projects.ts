@@ -18,10 +18,34 @@ function expandHome(p: string): string {
   return p
 }
 
-const DEFAULT_CLAUDE_MD = `# Project
+function generateDefaultClaudeMd(): string {
+  const timestamp = new Date().toISOString()
+  return `# Project Overview
+*Last updated: ${timestamp}*
 
-Add project context and instructions for Claude here.
+<!-- What is this project? What are its goals? -->
+
+# Project Plan
+*Last updated: ${timestamp}*
+
+<!-- High-level approach, milestones, key decisions -->
+
+# Current Task List
+*Last updated: ${timestamp}*
+
+<!-- Active tasks and their status -->
+
+# Status
+*Last updated: ${timestamp}*
+
+<!-- Current state, recent progress, blockers -->
+
+# Appendix
+*Last updated: ${timestamp}*
+
+<!-- Reference materials, decisions, learnings, links -->
 `
+}
 
 async function ensureGimbalDir(): Promise<void> {
   await mkdir(GIMBAL_DIR, { recursive: true })
@@ -93,7 +117,7 @@ export async function createProject(name: string, basePath: string): Promise<Pro
   await mkdir(join(projectPath, 'data'), { recursive: true })
   await mkdir(join(projectPath, 'scripts'), { recursive: true })
   await mkdir(join(projectPath, 'output'), { recursive: true })
-  await writeFile(join(projectPath, 'CLAUDE.md'), DEFAULT_CLAUDE_MD)
+  await writeFile(join(projectPath, 'CLAUDE.md'), generateDefaultClaudeMd())
 
   config.projects.push(project)
   await saveConfig(config)

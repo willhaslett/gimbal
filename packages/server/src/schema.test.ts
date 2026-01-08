@@ -22,17 +22,17 @@ describe('buildSystemPrompt', () => {
   it('includes CLAUDE.md content when provided', () => {
     const claudeMd = 'Custom instructions for this project'
     const result = buildSystemPrompt('proj-123', 'Test Project', '/path/to/project', claudeMd)
-    expect(result).toContain('Project-specific instructions:')
+    expect(result).toContain('## Project CLAUDE.md (your shared memory)')
     expect(result).toContain(claudeMd)
   })
 
   it('does not include CLAUDE.md section when not provided', () => {
     const result = buildSystemPrompt('proj-123', 'Test Project', '/path/to/project')
-    expect(result).not.toContain('Project-specific instructions:')
+    expect(result).not.toContain('## Project CLAUDE.md')
   })
 
   it('handles undefined CLAUDE.md', () => {
     const result = buildSystemPrompt('proj-123', 'Test Project', '/path/to/project', undefined)
-    expect(result).not.toContain('Project-specific instructions:')
+    expect(result).not.toContain('## Project CLAUDE.md')
   })
 })

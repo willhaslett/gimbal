@@ -164,8 +164,12 @@ describe('projects', () => {
       const project = await createProject('my-project', baseDir)
 
       const claudeMd = await readFile(join(project.path, 'CLAUDE.md'), 'utf-8')
-      expect(claudeMd).toContain('# Project')
-      expect(claudeMd).toContain('Add project context')
+      expect(claudeMd).toContain('# Project Overview')
+      expect(claudeMd).toContain('# Project Plan')
+      expect(claudeMd).toContain('# Current Task List')
+      expect(claudeMd).toContain('# Status')
+      expect(claudeMd).toContain('# Appendix')
+      expect(claudeMd).toContain('*Last updated:')
     })
 
     it('saves project to config file', async () => {
