@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+packages/server/.deploy/
+packages/desktop/release/
 
 # Environment
 .env

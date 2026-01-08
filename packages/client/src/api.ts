@@ -1,4 +1,9 @@
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api'
+// In desktop mode (same origin), use relative URL. Otherwise use configured or default.
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL + '/api'
+  : window.location.port === '5173'
+    ? 'http://localhost:3001/api'  // Vite dev server -> separate API server
+    : '/api'  // Same origin (desktop mode or production)
 
 export interface Project {
   id: string

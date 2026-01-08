@@ -1,0 +1,35 @@
+appId: com.prodaic.gimbal
+productName: Gimbal
+directories:
+  output: release
+  buildResources: resources
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - arm64
+    - target: dir
+      arch:
+        - arm64
+
+files:
+  - dist/**/*
+
+extraResources:
+  # Bundle the server from pnpm deploy output (has resolved dependencies)
+  - from: ../server/.deploy
+    to: server
+    filter:
+      - "**/*"
+      - "!**/vitest/**"
+      - "!**/*.d.ts"
+  # Bundle the client build
+  - from: ../client/dist
+    to: client
+
+asar: false
+
+# Don't publish anywhere
+publish: null

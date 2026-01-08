@@ -118,7 +118,7 @@ function getStatusFromMessage(message: unknown): string | null {
 }
 
 const app = express()
-const port = 3001
+const port = parseInt(process.env.PORT || '3001', 10)
 
 app.use(cors())
 app.use(express.json())
@@ -413,6 +413,20 @@ app.post(ROUTES.QUERY_STREAM, async (req, res) => {
 
   res.end()
 })
+
+// Serve static client files in desktop mode
+const staticDir = process.env.STATIC_DIR
+if (staticDir) {
+  const { existsSync } = await import('fs')
+  if (existsSync(staticDir)) {
+    logger.info({ event: 'static_dir', path: staticDir })
+    app.use(express.static(staticDir))
+    // SPA fallback - serve index.html for non-API routes
+    app.get('*', (_req, res) => {
+      res.sendFile(join(staticDir, 'index.html'))
+    })
+  }
+}
 
 app.listen(port, () => {
   logger.info({ event: 'server_start', port, url: `http://localhost:${port}` })
