@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
-import { listProjects, createProject, deleteProject, Project, FileEntry, listFiles, readFile } from '../api'
-import { File, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react'
+import { listProjects, createProject, deleteProject, Project, FileEntry, listFiles, readFile, revealProjectInFinder } from '../api'
+import { File, Folder, FolderOpen, ChevronRight, ChevronDown, ExternalLink } from 'lucide-react'
+
+// Debug logging - set to false for production builds
+const DEBUG = import.meta.env.DEV || true  // Always on for now
+const log = (...args: unknown[]) => DEBUG && console.log('[Gimbal]', ...args)
 
 // Format date as relative (today, yesterday, or date)
 function formatDate(dateStr: string): string {
@@ -123,6 +127,42 @@ function FileTreeInline({ projectId, onFileSelect }: FileTreeInlineProps) {
 
   return (
     <div>
+      {/* Show in Finder button */}
+      <div
+        style={{
+          padding: '0.25rem 0.5rem',
+          paddingLeft: '1.375rem',
+          borderBottom: '1px solid var(--color-border)',
+        }}
+      >
+        <button
+          onClick={async () => {
+            log('Show in Finder clicked, projectId:', projectId)
+            try {
+              await revealProjectInFinder(projectId)
+              log('revealProjectInFinder completed')
+            } catch (err) {
+              log('revealProjectInFinder error:', err)
+            }
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            fontSize: '0.7rem',
+            color: 'var(--color-text-muted)',
+          }}
+        >
+          <ExternalLink size={12} />
+          Show in Finder
+        </button>
+      </div>
+
+      {/* File tree */}
       {rootFiles.map((file) => (
         <TreeNode
           key={file.path}

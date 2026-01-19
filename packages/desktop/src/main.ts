@@ -1,8 +1,33 @@
 import { app, BrowserWindow, shell } from 'electron'
-import { spawn, ChildProcess } from 'child_process'
+import { spawn, ChildProcess, execSync } from 'child_process'
 import { createServer } from 'net'
 import { join } from 'path'
 import { existsSync } from 'fs'
+
+// Find node executable - Finder launches don't have shell PATH
+function findNode(): string {
+  // Common node locations
+  const candidates = [
+    '/opt/homebrew/bin/node',      // Homebrew on Apple Silicon
+    '/usr/local/bin/node',          // Homebrew on Intel / manual install
+    '/usr/bin/node',                // System node
+    process.env.HOME + '/.nvm/current/bin/node',  // nvm
+    process.env.HOME + '/.volta/bin/node',        // volta
+  ]
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  // Fallback: try to find via shell (works in Terminal, not Finder)
+  try {
+    return execSync('which node', { encoding: 'utf-8' }).trim()
+  } catch {
+    return 'node'  // Last resort, hope it's in PATH
+  }
+}
 
 let mainWindow: BrowserWindow | null = null
 let serverProcess: ChildProcess | null = null
@@ -97,9 +122,17 @@ async function startServer(): Promise<void> {
     console.log('Serving static files from', clientPath)
 
     // Use system node - user must have Node installed
-    serverProcess = spawn('node', [serverEntry], {
+    const nodePath = findNode()
+    const nodeDir = nodePath.substring(0, nodePath.lastIndexOf('/'))
+    console.log('Using node:', nodePath)
+
+    // Ensure PATH includes node's directory for child processes (MCP servers, etc.)
+    const enhancedPath = nodeDir + ':' + (process.env.PATH || '/usr/bin:/bin')
+
+    serverProcess = spawn(nodePath, [serverEntry], {
       env: {
         ...process.env,
+        PATH: enhancedPath,
         PORT: String(serverPort),
         STATIC_DIR: clientPath,
         NODE_ENV: 'production',
@@ -155,6 +188,13 @@ function createWindow(): void {
     // Production: server serves the client, load from same origin
     mainWindow.loadURL(`http://localhost:${serverPort}`)
   }
+
+  // Add desktop-app class for traffic light padding
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.webContents.executeJavaScript(
+      'document.body.classList.add("desktop-app")'
+    )
+  })
 
   // Open external links in browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

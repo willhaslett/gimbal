@@ -197,6 +197,7 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
   const [status, setStatus] = useState<string | null>(null)
   const [historyLoaded, setHistoryLoaded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Load chat history on mount
   useEffect(() => {
@@ -233,6 +234,29 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  // Listen for Escape key to cancel ongoing request
+  useEffect(() => {
+    if (!loading) {
+      console.log('[ChatPanel] Not loading, skipping Escape listener')
+      return
+    }
+
+    console.log('[ChatPanel] Setting up Escape key listener')
+    const handleKeyDown = (e: KeyboardEvent) => {
+      console.log('[ChatPanel] Key pressed:', e.key)
+      if (e.key === 'Escape') {
+        console.log('[ChatPanel] Escape pressed, aborting...', abortControllerRef.current)
+        abortControllerRef.current?.abort()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      console.log('[ChatPanel] Removing Escape key listener')
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [loading])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || loading) return
@@ -242,6 +266,11 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setLoading(true)
     setStatus('Thinking...')
+
+    // Create abort controller for this request
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    console.log('[ChatPanel] Created AbortController:', controller)
 
     try {
       await sendQueryStream(projectId, userMessage, (event: StreamEvent) => {
@@ -287,15 +316,25 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
             { role: 'assistant', content: `Error: ${errorData.message}` },
           ])
         }
-      })
+      }, controller.signal)
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: `Error: ${err}` },
-      ])
+      console.log('[ChatPanel] Caught error:', err, 'name:', (err as Error)?.name)
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[ChatPanel] Request was aborted')
+        setStatus('Cancelled')
+        // Brief delay to show "Cancelled" before clearing
+        await new Promise(resolve => setTimeout(resolve, 500))
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: `Error: ${err}` },
+        ])
+      }
     } finally {
+      console.log('[ChatPanel] Finally block, cleaning up')
       setLoading(false)
       setStatus(null)
+      abortControllerRef.current = null
     }
   }
 
@@ -352,6 +391,9 @@ export function ChatPanel({ projectId, onFilesChanged }: Props) {
               animation: 'pulse 1.5s ease-in-out infinite'
             }} />
             {status || 'Thinking...'}
+            <span style={{ fontSize: '0.75rem', opacity: 0.6, marginLeft: '0.5rem' }}>
+              (Esc to cancel)
+            </span>
           </div>
         )}
         <div ref={messagesEndRef} />

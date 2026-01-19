@@ -100,6 +100,11 @@ html, body, #root {
   color: var(--color-text);
 }
 
+/* Add top padding for macOS desktop app traffic lights */
+body.desktop-app {
+  padding-top: 40px;
+}
+
 button {
   cursor: pointer;
 }

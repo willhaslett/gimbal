@@ -73,6 +73,8 @@ import {
   deleteProjectFile,
   createProjectDirectory,
   getFileInfo,
+  moveProjectFile,
+  revealInFinder,
 } from './files.js'
 
 // Routes
@@ -162,6 +164,22 @@ app.delete(ROUTES.PROJECT, async (req, res) => {
   res.json({ success: true })
 })
 
+// POST /api/projects/:id/reveal - reveal project folder in Finder
+app.post('/api/projects/:id/reveal', async (req, res) => {
+  const project = await getProject(req.params.id)
+  if (!project) {
+    res.status(404).json({ error: 'project not found' })
+    return
+  }
+
+  try {
+    await revealInFinder(project.path, '')
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message })
+  }
+})
+
 // Chat history endpoint - returns prompt/response pairs for UI display
 app.get(ROUTES.HISTORY, async (req, res) => {
   const project = await getProject(req.params.id)
@@ -212,6 +230,55 @@ app.get(ROUTES.FILE, async (req, res) => {
       const content = await readProjectFile(project.path, relativePath)
       res.json({ file: { ...info, content } })
     }
+  } catch (err) {
+    const error = err as NodeJS.ErrnoException
+    if (error.code === 'ENOENT') {
+      res.status(404).json({ error: 'file not found' })
+    } else {
+      res.status(500).json({ error: error.message })
+    }
+  }
+})
+
+// POST /api/projects/:id/files/*/reveal - reveal file in Finder
+// NOTE: Must be defined BEFORE the general FILE route to take precedence
+app.post('/api/projects/:id/files/*/reveal', async (req, res) => {
+  const project = await getProject(req.params.id)
+  if (!project) {
+    res.status(404).json({ error: 'project not found' })
+    return
+  }
+
+  const relativePath = (req.params as Record<string, string>)[0] || ''
+
+  try {
+    await revealInFinder(project.path, relativePath)
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message })
+  }
+})
+
+// POST /api/projects/:id/files/*/move - move file to new location
+// NOTE: Must be defined BEFORE the general FILE route to take precedence
+app.post('/api/projects/:id/files/*/move', async (req, res) => {
+  const project = await getProject(req.params.id)
+  if (!project) {
+    res.status(404).json({ error: 'project not found' })
+    return
+  }
+
+  const fromPath = (req.params as Record<string, string>)[0] || ''
+  const { to } = req.body
+
+  if (!to) {
+    res.status(400).json({ error: 'destination path (to) is required' })
+    return
+  }
+
+  try {
+    await moveProjectFile(project.path, fromPath, to)
+    res.json({ success: true, from: fromPath, to })
   } catch (err) {
     const error = err as NodeJS.ErrnoException
     if (error.code === 'ENOENT') {

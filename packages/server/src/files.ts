@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile, readdir, stat, unlink, rmdir } from 'fs/promises'
-import { join, resolve, relative } from 'path'
+import { mkdir, readFile, writeFile, readdir, stat, unlink, rmdir, rename } from 'fs/promises'
+import { join, resolve, relative, dirname } from 'path'
+import { exec } from 'child_process'
 
 export interface FileEntry {
   name: string
@@ -117,4 +118,39 @@ export async function getFileInfo(projectPath: string, relativePath: string): Pr
     size: stats.isFile() ? stats.size : undefined,
     modifiedAt: stats.mtime.toISOString(),
   }
+}
+
+/**
+ * Move a file or directory to a new location
+ */
+export async function moveProjectFile(
+  projectPath: string,
+  fromRelativePath: string,
+  toRelativePath: string
+): Promise<void> {
+  const fromPath = securePath(projectPath, fromRelativePath)
+  const toPath = securePath(projectPath, toRelativePath)
+
+  // Ensure destination directory exists
+  await mkdir(dirname(toPath), { recursive: true })
+
+  await rename(fromPath, toPath)
+}
+
+/**
+ * Reveal a file in Finder (macOS)
+ */
+export function revealInFinder(projectPath: string, relativePath: string): Promise<void> {
+  const filePath = securePath(projectPath, relativePath)
+
+  return new Promise((resolve, reject) => {
+    // Use 'open -R' to reveal in Finder on macOS
+    exec(`open -R "${filePath}"`, (error) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+  })
 }

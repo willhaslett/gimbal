@@ -79,6 +79,26 @@ export async function writeFile(projectId: string, path: string, content: string
   })
 }
 
+export async function moveFile(projectId: string, fromPath: string, toPath: string): Promise<void> {
+  await fetch(`${API_BASE}/projects/${projectId}/files/${fromPath}/move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: toPath }),
+  })
+}
+
+export async function revealInFinder(projectId: string, path: string): Promise<void> {
+  await fetch(`${API_BASE}/projects/${projectId}/files/${path}/reveal`, {
+    method: 'POST',
+  })
+}
+
+export async function revealProjectInFinder(projectId: string): Promise<void> {
+  await fetch(`${API_BASE}/projects/${projectId}/reveal`, {
+    method: 'POST',
+  })
+}
+
 // Query (Claude)
 export async function sendQuery(projectId: string, prompt: string): Promise<unknown> {
   const res = await fetch(`${API_BASE}/projects/${projectId}/query`, {
@@ -99,12 +119,14 @@ export interface StreamEvent {
 export async function sendQueryStream(
   projectId: string,
   prompt: string,
-  onEvent: (event: StreamEvent) => void
+  onEvent: (event: StreamEvent) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   const res = await fetch(`${API_BASE}/projects/${projectId}/query/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt }),
+    signal,
   })
 
   if (!res.ok) {
